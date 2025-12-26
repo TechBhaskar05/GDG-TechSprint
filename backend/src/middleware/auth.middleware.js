@@ -1,7 +1,7 @@
 import jwt from "jsonwebtoken";
 import { ApiError } from "../utils/ApiError.js";
 
-export const auth = (req, res, next) => {
+const auth = (req, res, next) => {
   const header = req.headers.authorization;
 
   if (!header) throw new ApiError(401, "No token");
@@ -15,3 +15,5 @@ export const auth = (req, res, next) => {
     throw new ApiError(401, "Invalid token");
   }
 };
+
+export default auth;
