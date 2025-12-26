@@ -4,8 +4,14 @@ import { Card } from './Card';
 import { Badge } from './Badge';
 import { Button } from './Button';
 import { mockIssues } from '../data/mockData';
+import { useAppStore } from '../store/useAppStore';
+import { useAuthStore } from '../store/useAuthStore';
 
-export function AuthorityDashboard({ onNavigate, onLogout, onViewIssue }) {
+export function AuthorityDashboard() {
+  const onNavigate = useAppStore((state) => state.navigate);
+  const onViewIssue = useAppStore((state) => state.viewIssueDetail);
+  const onLogout = useAuthStore((state) => state.logout);
+
   const highPriorityIssues = mockIssues.filter(i => i.priority === 'high');
   const pendingIssues = mockIssues.filter(i => i.status !== 'resolved');
   const inProgressIssues = mockIssues.filter(i => i.status === 'in-progress');

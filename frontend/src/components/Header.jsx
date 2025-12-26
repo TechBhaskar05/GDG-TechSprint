@@ -1,8 +1,19 @@
 import { MapPin, User, Moon, Sun } from 'lucide-react';
-import { useDarkMode } from '../contexts/DarkModeContext';
+import { useThemeStore } from '../store/useThemeStore';
+import { useAppStore } from '../store/useAppStore';
+import { useAuthStore } from '../store/useAuthStore';
 
-export function Header({ userRole, onLogout, onNavigate, currentLocation = 'Mumbai, Maharashtra' }) {
-  const { isDarkMode, toggleDarkMode } = useDarkMode();
+export function Header({ currentLocation = 'Mumbai, Maharashtra' }) {
+  const userRole = useAuthStore((state) => state.userRole);
+  const logout = useAuthStore((state) => state.logout);
+  const isDarkMode = useThemeStore((state) => state.isDarkMode);
+  const toggleDarkMode = useThemeStore((state) => state.toggleDarkMode);
+  const onNavigate = useAppStore((state) => state.navigate);
+
+  const handleLogout = () => {
+    logout();
+    onNavigate('landing');
+  };
   
   return (
     <header className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md border-b border-slate-200/60 dark:border-slate-700/60 sticky top-0 z-50 shadow-sm">
@@ -77,7 +88,7 @@ export function Header({ userRole, onLogout, onNavigate, currentLocation = 'Mumb
                     </div>
                   </div>
                   <button 
-                    onClick={onLogout}
+                    onClick={handleLogout}
                     className="w-full text-left px-3 py-2 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg transition-all"
                   >
                     Sign Out

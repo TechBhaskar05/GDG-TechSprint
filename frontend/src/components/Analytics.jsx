@@ -3,8 +3,11 @@ import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, Cart
 import { Card } from './Card';
 import { Badge } from './Badge';
 import { mockIssues, categories } from '../data/mockData';
+import { useAppStore } from '../store/useAppStore';
 
-export function Analytics({ onNavigate }) {
+export function Analytics() {
+  const onNavigate = useAppStore((state) => state.navigate);
+
   // Process data for charts
   const categoryData = categories.map(cat => ({
     name: cat.split(' ')[0],

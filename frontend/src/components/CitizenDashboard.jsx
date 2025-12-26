@@ -4,8 +4,14 @@ import { Button } from './Button';
 import { Card } from './Card';
 import { Badge } from './Badge';
 import { mockUserIssues } from '../data/mockData';
+import { useAppStore } from '../store/useAppStore';
+import { useAuthStore } from '../store/useAuthStore';
 
-export function CitizenDashboard({ onNavigate, onLogout, onViewIssue }) {
+export function CitizenDashboard() {
+  const onNavigate = useAppStore((state) => state.navigate);
+  const onViewIssue = useAppStore((state) => state.viewIssueDetail);
+  const onLogout = useAuthStore((state) => state.logout);
+
   const formatDate = (date) => {
     return new Intl.DateTimeFormat('en-IN', { 
       month: 'short', 

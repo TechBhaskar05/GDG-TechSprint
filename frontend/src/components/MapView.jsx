@@ -5,13 +5,21 @@ import { Card } from './Card';
 import { Badge } from './Badge';
 import { Button } from './Button';
 import { mockIssues, categories } from '../data/mockData';
+import { useAppStore } from '../store/useAppStore';
+import { useAuthStore } from '../store/useAuthStore';
 
-export function MapView({ onNavigate, onViewIssue, userRole, onLogout }) {
+export function MapView() {
   const [selectedIssue, setSelectedIssue] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
   const [filterCategory, setFilterCategory] = useState('');
   const [filterPriority, setFilterPriority] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+
+  const navigate = useAppStore((state) => state.navigate);
+  const viewIssue = useAppStore((state) => state.viewIssue);
+
+  const userRole = useAuthStore((state) => state.userRole);
+  const logout = useAuthStore((state) => state.logout);
 
   const filteredIssues = mockIssues.filter(issue => {
     if (filterCategory && issue.category !== filterCategory) return false;
@@ -34,15 +42,15 @@ export function MapView({ onNavigate, onViewIssue, userRole, onLogout }) {
       {userRole ? (
         <Header 
           userRole={userRole} 
-          onLogout={onLogout}
-          onNavigate={onNavigate}
+          onLogout={logout}
+          onNavigate={navigate}
         />
       ) : (
         <header className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200/60 dark:border-slate-700/60 sticky top-0 z-50 shadow-sm">
           <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
             <div className="flex items-center gap-8">
               <button 
-                onClick={() => onNavigate('landing')}
+                onClick={() => navigate('landing')}
                 className="flex items-center gap-2 hover:opacity-80 transition-opacity"
               >
                 <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-blue-700 dark:from-cyan-500 dark:to-purple-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-600/20 dark:shadow-cyan-500/50">
@@ -55,15 +63,15 @@ export function MapView({ onNavigate, onViewIssue, userRole, onLogout }) {
             <div className="flex items-center gap-4">
               <Button 
                 variant="ghost" 
-                onClick={() => onNavigate('landing')}
+                onClick={() => navigate('landing')}
               >
                 <ArrowLeft className="w-4 h-4" />
                 Back to Home
               </Button>
-              <Button variant="ghost" onClick={() => onNavigate('login')}>
+              <Button variant="ghost" onClick={() => navigate('login')}>
                 Sign In
               </Button>
-              <Button onClick={() => onNavigate('signup')}>
+              <Button onClick={() => navigate('signup')}>
                 Get Started
               </Button>
             </div>
@@ -285,7 +293,7 @@ export function MapView({ onNavigate, onViewIssue, userRole, onLogout }) {
 
               <Button 
                 className="w-full"
-                onClick={() => onViewIssue(selectedIssue)}
+                onClick={() => viewIssue(selectedIssue)}
               >
                 View Full Details
               </Button>

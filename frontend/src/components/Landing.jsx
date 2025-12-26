@@ -1,9 +1,11 @@
 import { ArrowRight, Brain, TrendingUp, Eye, MapPin } from 'lucide-react';
 import { Button } from './Button';
-import { useDarkMode } from '../contexts/DarkModeContext';
+import { useThemeStore } from '../store/useThemeStore';
+import { useAppStore } from '../store/useAppStore';
 
-export function Landing({ onNavigate }) {
-  const { isDarkMode, toggleDarkMode } = useDarkMode();
+export function Landing() {
+  const { isDarkMode, toggleDarkMode } = useThemeStore();
+  const navigate = useAppStore((state) => state.navigate);
   
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
@@ -20,10 +22,10 @@ export function Landing({ onNavigate }) {
             <Button variant="ghost" onClick={toggleDarkMode}>
               {isDarkMode ? '☀️' : '🌙'}
             </Button>
-            <Button variant="ghost" onClick={() => onNavigate('login')}>
+            <Button variant="ghost" onClick={() => navigate('login')}>
               Sign In
             </Button>
-            <Button onClick={() => onNavigate('signup')}>
+            <Button onClick={() => navigate('signup')}>
               Get Started
             </Button>
           </div>
@@ -57,7 +59,7 @@ export function Landing({ onNavigate }) {
               <div className="flex flex-wrap gap-4">
                 <Button
                   size="lg"
-                  onClick={() => onNavigate('signup')}
+                  onClick={() => navigate('signup')}
                   className="shadow-lg shadow-blue-600/20 hover:shadow-xl hover:shadow-blue-600/30 transition-all"
                 >
                   Report an Issue
@@ -66,7 +68,7 @@ export function Landing({ onNavigate }) {
                 <Button
                   size="lg"
                   variant="outline"
-                  onClick={() => onNavigate('map-view')}
+                  onClick={() => navigate('map-view')}
                   className="hover:bg-slate-50 dark:hover:bg-slate-700"
                 >
                   View Issues Near Me
@@ -140,8 +142,6 @@ export function Landing({ onNavigate }) {
       {/* CTA Section */}
       <section className="py-24 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-blue-600 via-blue-700 to-purple-700"></div>
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS1vcGFjaXR5PSIwLjA1IiBzdHJva2Utd2lkdGg9IjEiLz48L3BhdHRlcm4+PC9kZWZzPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9InVybCgjZ3JpZCkiLz48L3N2Zz4=')] opacity-40"></div>
-        
         <div className="max-w-4xl mx-auto px-6 text-center relative">
           <h2 className="text-white mb-4">
             Ready to make your city better?
@@ -150,10 +150,10 @@ export function Landing({ onNavigate }) {
             Join thousands of citizens working together to improve civic infrastructure
           </p>
           <div className="flex flex-wrap gap-4 justify-center">
-            <Button size="lg" onClick={() => onNavigate('signup')} className="bg-white/20 hover:bg-white/40 shadow-xl">
+            <Button size="lg" onClick={() => navigate('signup')} className="bg-white/20 hover:bg-white/40 shadow-xl">
               Get Started as Citizen
             </Button>
-            <Button size="lg" onClick={() => onNavigate('login')} className="bg-white/20 hover:bg-white/40 shadow-xl">
+            <Button size="lg" onClick={() => navigate('login')} className="bg-white/20 hover:bg-white/40 shadow-xl">
               Sign In as Authority
             </Button>
           </div>

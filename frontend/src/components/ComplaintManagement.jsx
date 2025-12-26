@@ -4,8 +4,12 @@ import { Card } from './Card';
 import { Badge } from './Badge';
 import { Button } from './Button';
 import { mockIssues, categories, wards } from '../data/mockData';
+import { useAppStore } from '../store/useAppStore';
 
-export function ComplaintManagement({ onNavigate, onViewIssue }) {
+export function ComplaintManagement() {
+  const onNavigate = useAppStore((state) => state.navigate);
+  const onViewIssue = useAppStore((state) => state.viewIssue);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [filterWard, setFilterWard] = useState('');
   const [filterCategory, setFilterCategory] = useState('');

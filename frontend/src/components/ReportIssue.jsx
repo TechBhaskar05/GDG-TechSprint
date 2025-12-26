@@ -5,7 +5,9 @@ import { Card } from './Card';
 import { Badge } from './Badge';
 import { categories } from '../data/mockData';
 
-export function ReportIssue({ onNavigate, onBack }) {
+export function ReportIssue() {
+  const navigate = useAppStore((state) => state.navigate);
+
   const [step, setStep] = useState(1);
   const [description, setDescription] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
@@ -28,7 +30,7 @@ export function ReportIssue({ onNavigate, onBack }) {
   const handleSubmit = () => {
     setSubmitted(true);
     setTimeout(() => {
-      onBack();
+      navigate('citizen-dashboard');
     }, 2000);
   };
 
@@ -70,7 +72,7 @@ export function ReportIssue({ onNavigate, onBack }) {
       <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
         <div className="max-w-4xl mx-auto px-6 py-4 flex items-center gap-4">
           <button
-            onClick={onBack}
+            onClick={() => navigate('citizen-dashboard')}
             className="flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-cyan-400"
           >
             <ArrowLeft className="w-5 h-5" />

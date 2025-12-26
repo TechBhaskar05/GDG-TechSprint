@@ -3,8 +3,11 @@ import { ArrowLeft, ThumbsUp, MapPin, Calendar, User, AlertTriangle } from 'luci
 import { Button } from './Button';
 import { Card } from './Card';
 import { Badge } from './Badge';
+import { useAppStore } from '../store/useAppStore';
 
-export function IssueDetail({ issue, onBack, userRole }) {
+export function IssueDetail({ issue, userRole }) {
+  const navigate = useAppStore((state) => state.navigate);
+
   const [upvoted, setUpvoted] = useState(false);
   const [showUpdateForm, setShowUpdateForm] = useState(false);
   const [status, setStatus] = useState(issue.status);
@@ -33,7 +36,13 @@ export function IssueDetail({ issue, onBack, userRole }) {
       <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
         <div className="max-w-5xl mx-auto px-6 py-4">
           <button 
-            onClick={onBack}
+            onClick={() =>
+              navigate(
+                userRole === 'authority'
+                  ? 'authority-dashboard'
+                  : 'citizen-dashboard'
+              )
+            }
             className="flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-cyan-400 transition-colors"
           >
             <ArrowLeft className="w-5 h-5" />
