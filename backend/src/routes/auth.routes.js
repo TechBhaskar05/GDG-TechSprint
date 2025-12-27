@@ -2,7 +2,7 @@ import express from "express";
 import {
   register,
   verifyOtp,
-  login,
+   login,
   getMe,
   refreshAccessToken,
   logout,
