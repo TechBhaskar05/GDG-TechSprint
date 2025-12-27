@@ -54,6 +54,11 @@ const userSchema = new Schema(
       default: null,
     },
 
+    otp: {
+      code: String,
+      expiresAt: Date,
+    },
+    
     // Prevent fake accounts
     isVerified: {
       type: Boolean,
