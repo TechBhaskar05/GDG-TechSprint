@@ -6,52 +6,70 @@ import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 
+import { generateOTP } from "../utils/generateOtp.js";
+import { sendEmail } from "../utils/sendEmail.js";
+
 export const register = asyncHandler(async (req, res) => {
   const { name, email, password, role, wardId } = req.body;
 
   if (!name || !email || !password)
     throw new ApiError(400, "Name, email & password are required");
 
-  const exists = await User.findOne({ email });
-  if (exists) throw new ApiError(400, "Email already registered");
+  let user = await User.findOne({ email });
 
-  const user = await User.create({
-    name,
-    email,
-    password,
-    role,
-    wardId,
-  });
+  if (user && user.isVerified)
+    throw new ApiError(400, "Email already registered");
 
-  // Access token
-  const accessToken = user.generateAccessToken();
+  const otp = generateOTP();
 
-  // Create raw refresh token
-  const refreshToken = crypto.randomBytes(40).toString("hex");
-
-  await user.addRefreshSession(
-    refreshToken,
-    new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
-    req.headers["user-agent"],
-    req.ip
-  );
-
-  return res.status(201).json(
-    new ApiResponse(
-      201,
-      {
-        user: {
-          id: user._id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-        },
-        accessToken,
-        refreshToken,
+  if (!user) {
+    user = await User.create({
+      name,
+      email,
+      password,
+      role,
+      wardId,
+      isVerified: false,
+      otp: {
+        code: otp,
+        expiresAt: Date.now() + 10 * 60 * 1000, // 10 mins
       },
-      "User registered successfully"
-    )
+    });
+  } else {
+    user.otp = {
+      code: otp,
+      expiresAt: Date.now() + 10 * 60 * 1000,
+    };
+    await user.save();
+  }
+
+  await sendEmail(
+    email,
+    "CivicFix AI – Email Verification OTP",
+    `<h2>Your OTP is: <b>${otp}</b></h2>`
   );
+
+  return res.json(new ApiResponse(200, null, "OTP sent to email"));
+});
+
+export const verifyOtp = asyncHandler(async (req, res) => {
+  const { email, otp } = req.body;
+
+  const user = await User.findOne({ email });
+  if (!user) throw new ApiError(404, "User not found");
+
+  if (!user.otp?.code) throw new ApiError(400, "No OTP generated");
+
+  if (user.otp.expiresAt < new Date()) throw new ApiError(400, "OTP expired");
+
+  if (user.otp.code !== otp) throw new ApiError(400, "Invalid OTP");
+
+  user.isVerified = true;
+  user.otp = undefined;
+
+  await user.save();
+
+  return res.json(new ApiResponse(200, null, "Email verified successfully"));
 });
 
 export const login = asyncHandler(async (req, res) => {
@@ -61,6 +79,8 @@ export const login = asyncHandler(async (req, res) => {
 
   const user = await User.findOne({ email });
   if (!user) throw new ApiError(400, "Invalid credentials");
+  if (!user.isVerified)
+    throw new ApiError(401, "Please verify your email first");
 
   const isMatch = await user.isPasswordCorrect(password);
   if (!isMatch) throw new ApiError(400, "Invalid credentials");
