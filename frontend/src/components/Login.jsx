@@ -45,7 +45,7 @@ export function Login({ isSignup }) {
       /* =========================
          LOGIN FLOW
       ========================== */
-      const res = await loginUser({ email, password });
+      const res = await loginUser({ email, password,role });
       console.log("reached here");
       console.log(res);
       const { user, accessToken } = res.data;

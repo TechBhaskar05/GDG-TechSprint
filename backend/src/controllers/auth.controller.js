@@ -70,30 +70,29 @@ export const verifyOtp = asyncHandler(async (req, res) => {
   await user.save();
 
   return res.json(
-  new ApiResponse(
-    200,
-    {
-      user: {
-        id: user._id,
-        email: user.email,
-        role: user.role,
+    new ApiResponse(
+      200,
+      {
+        user: {
+          id: user._id,
+          email: user.email,
+          role: user.role,
+        },
       },
-    },
-    "Email verified successfully"
-  )
-);
-
-
+      "Email verified successfully"
+    )
+  );
 });
 
 export const login = asyncHandler(async (req, res) => {
   console.log("step 1 done");
-  const { email, password } = req.body;
+  const { email, password, role } = req.body;
 
-  if (!email || !password) throw new ApiError(400, "Email & password required");
+  if (!email || !password || !role)
+    throw new ApiError(400, "Email & password & role required");
   console.log("step 1 done");
 
-  const user = await User.findOne({ email });
+  const user = await User.findOne({ email, role });
   if (!user) throw new ApiError(400, "Invalid credentials");
   console.log("step 1 done");
   if (!user.isVerified)
@@ -103,7 +102,7 @@ export const login = asyncHandler(async (req, res) => {
   const isMatch = await user.isPasswordCorrect(password);
   console.log("step 1 done");
   console.log(isMatch);
-  if(!isMatch) throw new ApiError(400, "Invalid credentials");
+  if (!isMatch) throw new ApiError(400, "Invalid credentials");
   console.log("step 1 done");
 
   const accessToken = user.generateAccessToken();
@@ -121,14 +120,14 @@ export const login = asyncHandler(async (req, res) => {
     new ApiResponse(
       200,
       {
-      user: {
-        id: user._id,
-        email: user.email,
-        role: user.role,
+        user: {
+          id: user._id,
+          email: user.email,
+          role: user.role,
+        },
+        accessToken,
+        refreshToken,
       },
-      accessToken,
-      refreshToken,
-    },
       "Logged in successfully"
     )
   );
