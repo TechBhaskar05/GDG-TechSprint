@@ -7,7 +7,6 @@ import { IssueDetail } from "./components/IssueDetail";
 import { AuthorityDashboard } from "./components/AuthorityDashboard";
 import { ComplaintManagement } from "./components/ComplaintManagement";
 import { Analytics } from "./components/Analytics";
-
 import { useAppStore } from "./store/useAppStore";
 import { useAuthStore } from "./store/useAuthStore";
 import { useEffect } from "react";
@@ -32,6 +31,13 @@ export default function App() {
     if (!isAuthenticated) {
       navigate("landing");
     }
+    const role = localStorage.getItem("role");
+    if (role === "citizen") {
+      navigate("citizen-dashboard");
+    } else if (role === "authority") {
+      navigate("authority-dashboard");
+    }
+
   }, [isAuthenticated, navigate]);
 
   // Login handler (LOGIC UNCHANGED)
@@ -45,11 +51,12 @@ export default function App() {
     }
   };
 
-  // Logout handler (LOGIC UNCHANGED)
-  const handleLogout = () => {
-    logout();
+
+  const handleLogout = async () => {
+    await logout();
     navigate("landing");
   };
+
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 transition-colors">

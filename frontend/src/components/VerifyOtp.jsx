@@ -4,6 +4,7 @@ import { Card } from "./Card";
 import { Button } from "./Button";
 import { useAppStore } from "../store/useAppStore";
 import { useAuthStore } from "../store/useAuthStore";
+import { verifyOtp } from "../services/auth.service.js";
 
 export default function VerifyOtp() {
   const [otp, setOtp] = useState("");
@@ -12,58 +13,35 @@ export default function VerifyOtp() {
   const login = useAuthStore((s) => s.login);
 
   const handleVerifyOtp = async (e) => {
-    e.preventDefault();
+  e.preventDefault();
 
-    console.log("OTP submit triggered");
+  const email = sessionStorage.getItem("pendingEmail");
 
-    const userId = sessionStorage.getItem("pendingUserId");
-    const email = sessionStorage.getItem("pendingEmail");
+  if (!email) {
+    alert("Session expired");
+    navigate("signup");
+    return;
+  }
 
-    if (!userId || !email) {
-      alert("Session expired — please sign up again");
-      navigate("signup");
-      return;
-    }
+  try {
+    const data = await verifyOtp({ email, otp });
+    console.log(data);
+    login(data.data.user.role);
+    console.log(data);
+    sessionStorage.clear();
+    console.log(data);
 
-    try {
-      const res = await fetch("http://localhost:8000/api/auth/verify-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, otp }),
-      });
+    // navigate(
+    //   data.data.user.role === "authority"
+    //     ? "authority-dashboard"
+    //     : "citizen-dashboard"
+    // );
+    navigate("login");
+  } catch (err) {
+    alert(err.response?.data?.message || "OTP verification failed");
+  }
+};
 
-      let data = null;
-      try {
-        data = await res.json();
-      } catch {}
-
-      // ❌ Expect backend to fail → MOCK SUCCESS
-      if (!res.ok) {
-        console.warn("Backend rejected OTP — MOCK SUCCESS 🚀");
-
-        login("citizen");
-        sessionStorage.clear();
-        navigate("citizen-dashboard");
-        return;
-      }
-
-      // ✅ Real success if backend works in future
-      login(data?.data?.user?.role || "citizen");
-      sessionStorage.clear();
-
-      navigate(
-        data?.data?.user?.role === "authority"
-          ? "authority-dashboard"
-          : "citizen-dashboard"
-      );
-    } catch (err) {
-      console.warn("SERVER DOWN — MOCK SUCCESS 🚀");
-
-      login("citizen");
-      sessionStorage.clear();
-      navigate("citizen-dashboard");
-    }
-  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-slate-900">
