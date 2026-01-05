@@ -1,17 +1,24 @@
-import { useState } from 'react';
-import { ArrowLeft, Camera, MapPin, AlertCircle, CheckCircle } from 'lucide-react';
-import { Button } from './Button';
-import { Card } from './Card';
-import { Badge } from './Badge';
-import { categories } from '../data/mockData';
+import { useState } from "react";
+import {
+  ArrowLeft,
+  Camera,
+  MapPin,
+  AlertCircle,
+  CheckCircle,
+} from "lucide-react";
+import { Button } from "./Button";
+import { Card } from "./Card";
+import { Badge } from "./Badge";
+import { categories } from "../data/mockData";
+import { useAppStore } from "../store/useAppStore";
 
 export function ReportIssue() {
   const navigate = useAppStore((state) => state.navigate);
 
   const [step, setStep] = useState(1);
-  const [description, setDescription] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('');
-  const [urgency, setUrgency] = useState('medium');
+  const [description, setDescription] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("");
+  const [urgency, setUrgency] = useState("medium");
   const [image, setImage] = useState(null);
   const [submitted, setSubmitted] = useState(false);
 
@@ -30,7 +37,7 @@ export function ReportIssue() {
   const handleSubmit = () => {
     setSubmitted(true);
     setTimeout(() => {
-      navigate('citizen-dashboard');
+      navigate("citizen-dashboard");
     }, 2000);
   };
 
@@ -45,7 +52,8 @@ export function ReportIssue() {
             Issue Reported Successfully!
           </h2>
           <p className="text-slate-600 dark:text-slate-400 mb-6">
-            Your report has been submitted. Our AI is analyzing it and will assign priority shortly.
+            Your report has been submitted. Our AI is analyzing it and will
+            assign priority shortly.
           </p>
           <div className="p-4 bg-blue-50 dark:bg-cyan-900/30 rounded-lg text-left dark:border dark:border-cyan-500/30">
             <div className="text-blue-900 dark:text-cyan-300 mb-2">
@@ -54,7 +62,7 @@ export function ReportIssue() {
             <div className="space-y-2 text-blue-700 dark:text-cyan-400">
               <div className="flex justify-between">
                 <span>Category:</span>
-                <Badge>{selectedCategory || 'Road Damage'}</Badge>
+                <Badge>{selectedCategory || "Road Damage"}</Badge>
               </div>
               <div className="flex justify-between">
                 <span>Priority:</span>
@@ -72,7 +80,7 @@ export function ReportIssue() {
       <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
         <div className="max-w-4xl mx-auto px-6 py-4 flex items-center gap-4">
           <button
-            onClick={() => navigate('citizen-dashboard')}
+            onClick={() => navigate("citizen-dashboard")}
             className="flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-cyan-400"
           >
             <ArrowLeft className="w-5 h-5" />
@@ -88,12 +96,14 @@ export function ReportIssue() {
           <div className="flex items-center gap-2">
             <div
               className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                step >= 1 ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-600'
+                step >= 1
+                  ? "bg-blue-600 text-white"
+                  : "bg-slate-200 text-slate-600"
               }`}
             >
               1
             </div>
-            <span className={step >= 1 ? 'text-slate-900' : 'text-slate-600'}>
+            <span className={step >= 1 ? "text-slate-900" : "text-slate-600"}>
               Upload Photo
             </span>
           </div>
@@ -101,12 +111,14 @@ export function ReportIssue() {
           <div className="flex items-center gap-2">
             <div
               className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                step >= 2 ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-600'
+                step >= 2
+                  ? "bg-blue-600 text-white"
+                  : "bg-slate-200 text-slate-600"
               }`}
             >
               2
             </div>
-            <span className={step >= 2 ? 'text-slate-900' : 'text-slate-600'}>
+            <span className={step >= 2 ? "text-slate-900" : "text-slate-600"}>
               Describe Issue
             </span>
           </div>
@@ -114,12 +126,14 @@ export function ReportIssue() {
           <div className="flex items-center gap-2">
             <div
               className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                step >= 3 ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-600'
+                step >= 3
+                  ? "bg-blue-600 text-white"
+                  : "bg-slate-200 text-slate-600"
               }`}
             >
               3
             </div>
-            <span className={step >= 3 ? 'text-slate-900' : 'text-slate-600'}>
+            <span className={step >= 3 ? "text-slate-900" : "text-slate-600"}>
               Review & Submit
             </span>
           </div>
@@ -136,7 +150,8 @@ export function ReportIssue() {
                 Upload Photo of the Issue
               </h2>
               <p className="text-slate-600 dark:text-slate-400 mb-8">
-                A clear photo helps authorities understand and resolve the issue faster
+                A clear photo helps authorities understand and resolve the issue
+                faster
               </p>
               <label className="inline-block">
                 <input
@@ -205,31 +220,31 @@ export function ReportIssue() {
                 </span>
                 <div className="flex gap-3">
                   <button
-                    onClick={() => setUrgency('low')}
+                    onClick={() => setUrgency("low")}
                     className={`flex-1 py-3 px-4 rounded-lg border-2 transition-colors ${
-                      urgency === 'low'
-                        ? 'border-green-500 bg-green-50 text-green-700'
-                        : 'border-slate-200 text-slate-600 hover:border-slate-300'
+                      urgency === "low"
+                        ? "border-green-500 bg-green-50 text-green-700"
+                        : "border-slate-200 text-slate-600 hover:border-slate-300"
                     }`}
                   >
                     Low
                   </button>
                   <button
-                    onClick={() => setUrgency('medium')}
+                    onClick={() => setUrgency("medium")}
                     className={`flex-1 py-3 px-4 rounded-lg border-2 transition-colors ${
-                      urgency === 'medium'
-                        ? 'border-yellow-500 bg-yellow-50 text-yellow-700'
-                        : 'border-slate-200 text-slate-600 hover:border-slate-300'
+                      urgency === "medium"
+                        ? "border-yellow-500 bg-yellow-50 text-yellow-700"
+                        : "border-slate-200 text-slate-600 hover:border-slate-300"
                     }`}
                   >
                     Medium
                   </button>
                   <button
-                    onClick={() => setUrgency('high')}
+                    onClick={() => setUrgency("high")}
                     className={`flex-1 py-3 px-4 rounded-lg border-2 transition-colors ${
-                      urgency === 'high'
-                        ? 'border-red-500 bg-red-50 text-red-700'
-                        : 'border-slate-200 text-slate-600 hover:border-slate-300'
+                      urgency === "high"
+                        ? "border-red-500 bg-red-50 text-red-700"
+                        : "border-slate-200 text-slate-600 hover:border-slate-300"
                     }`}
                   >
                     High
@@ -240,7 +255,9 @@ export function ReportIssue() {
               <div className="flex items-start gap-3 p-4 bg-slate-50 rounded-lg mb-6">
                 <MapPin className="w-5 h-5 text-slate-600 mt-0.5" />
                 <div>
-                  <div className="text-slate-900 mb-1">Auto-detected Location</div>
+                  <div className="text-slate-900 mb-1">
+                    Auto-detected Location
+                  </div>
                   <div className="text-slate-600">
                     Main Street, Andheri West, Mumbai
                   </div>
@@ -315,9 +332,9 @@ export function ReportIssue() {
                 <div>
                   <div className="text-blue-900 mb-1">AI Analysis Preview</div>
                   <div className="text-blue-700">
-                    Our AI will automatically classify this issue and assign priority
-                    based on severity, location impact, and historical patterns.
-                    You'll receive updates via notifications.
+                    Our AI will automatically classify this issue and assign
+                    priority based on severity, location impact, and historical
+                    patterns. You'll receive updates via notifications.
                   </div>
                 </div>
               </div>

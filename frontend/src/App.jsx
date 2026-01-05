@@ -1,16 +1,17 @@
-import { Landing } from './components/Landing';
-import { Login } from './components/Login';
-import { CitizenDashboard } from './components/CitizenDashboard';
-import { ReportIssue } from './components/ReportIssue';
-import { MapView } from './components/MapView';
-import { IssueDetail } from './components/IssueDetail';
-import { AuthorityDashboard } from './components/AuthorityDashboard';
-import { ComplaintManagement } from './components/ComplaintManagement';
-import { Analytics } from './components/Analytics';
+import { Landing } from "./components/Landing";
+import { Login } from "./components/Login";
+import { CitizenDashboard } from "./components/CitizenDashboard";
+import { ReportIssue } from "./components/ReportIssue";
+import { MapView } from "./components/MapView";
+import { IssueDetail } from "./components/IssueDetail";
+import { AuthorityDashboard } from "./components/AuthorityDashboard";
+import { ComplaintManagement } from "./components/ComplaintManagement";
+import { Analytics } from "./components/Analytics";
 
-import { useAppStore } from './store/useAppStore';
-import { useAuthStore } from './store/useAuthStore';
-import { useEffect } from 'react';
+import { useAppStore } from "./store/useAppStore";
+import { useAuthStore } from "./store/useAuthStore";
+import { useEffect } from "react";
+import VerifyOtp from "./components/VerifyOtp";
 
 export default function App() {
   // App state (Zustand)
@@ -29,7 +30,7 @@ export default function App() {
 
   useEffect(() => {
     if (!isAuthenticated) {
-      navigate('landing');
+      navigate("landing");
     }
   }, [isAuthenticated, navigate]);
 
@@ -37,34 +38,33 @@ export default function App() {
   const handleLogin = (role) => {
     login(role);
 
-    if (role === 'citizen') {
-      navigate('citizen-dashboard');
-    } else if (role === 'authority') {
-      navigate('authority-dashboard');
+    if (role === "citizen") {
+      navigate("citizen-dashboard");
+    } else if (role === "authority") {
+      navigate("authority-dashboard");
     }
   };
 
   // Logout handler (LOGIC UNCHANGED)
   const handleLogout = () => {
     logout();
-    navigate('landing');
+    navigate("landing");
   };
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 transition-colors">
-      {currentScreen === 'landing' && (
-        <Landing onNavigate={navigate} />
-      )}
+      {currentScreen === "landing" && <Landing onNavigate={navigate} />}
+      {currentScreen === "verify-otp" && <VerifyOtp />}
 
-      {(currentScreen === 'login' || currentScreen === 'signup') && (
+      {(currentScreen === "login" || currentScreen === "signup") && (
         <Login
-          isSignup={currentScreen === 'signup'}
+          isSignup={currentScreen === "signup"}
           onLogin={handleLogin}
           onNavigate={navigate}
         />
       )}
 
-      {currentScreen === 'citizen-dashboard' && (
+      {currentScreen === "citizen-dashboard" && (
         <CitizenDashboard
           onNavigate={navigate}
           onLogout={handleLogout}
@@ -72,14 +72,14 @@ export default function App() {
         />
       )}
 
-      {currentScreen === 'report-issue' && (
+      {currentScreen === "report-issue" && (
         <ReportIssue
           onNavigate={navigate}
-          onBack={() => navigate('citizen-dashboard')}
+          onBack={() => navigate("citizen-dashboard")}
         />
       )}
 
-      {currentScreen === 'map-view' && (
+      {currentScreen === "map-view" && (
         <MapView
           onNavigate={navigate}
           onViewIssue={viewIssue}
@@ -88,22 +88,22 @@ export default function App() {
         />
       )}
 
-      {currentScreen === 'issue-detail' && selectedIssue && (
+      {currentScreen === "issue-detail" && selectedIssue && (
         <IssueDetail
           issue={selectedIssue}
           onNavigate={navigate}
           onBack={() =>
             navigate(
-              userRole === 'authority'
-                ? 'authority-dashboard'
-                : 'citizen-dashboard'
+              userRole === "authority"
+                ? "authority-dashboard"
+                : "citizen-dashboard"
             )
           }
           userRole={userRole}
         />
       )}
 
-      {currentScreen === 'authority-dashboard' && (
+      {currentScreen === "authority-dashboard" && (
         <AuthorityDashboard
           onNavigate={navigate}
           onLogout={handleLogout}
@@ -111,16 +111,11 @@ export default function App() {
         />
       )}
 
-      {currentScreen === 'complaint-management' && (
-        <ComplaintManagement
-          onNavigate={navigate}
-          onViewIssue={viewIssue}
-        />
+      {currentScreen === "complaint-management" && (
+        <ComplaintManagement onNavigate={navigate} onViewIssue={viewIssue} />
       )}
 
-      {currentScreen === 'analytics' && (
-        <Analytics onNavigate={navigate} />
-      )}
+      {currentScreen === "analytics" && <Analytics onNavigate={navigate} />}
     </div>
   );
 }
