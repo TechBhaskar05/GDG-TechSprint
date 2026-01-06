@@ -15,6 +15,14 @@ export const register = asyncHandler(async (req, res) => {
   if (!name || !email || !password)
     throw new ApiError(400, "Name, email & password are required");
 
+  if (!["citizen", "authority"].includes(role)) {
+    throw new ApiError(400, "Invalid role");
+  }
+
+  if (role === "authority" && !wardId) {
+    throw new ApiError(400, "Ward ID is required for authority");
+  }
+
   let user = await User.findOne({ email });
 
   if (user && user.isVerified)
@@ -28,7 +36,7 @@ export const register = asyncHandler(async (req, res) => {
       email,
       password,
       role,
-      wardId,
+      wardId : role==="authority" ? wardId : null,
       isVerified: false,
       otp: {
         code: otp,
@@ -49,7 +57,13 @@ export const register = asyncHandler(async (req, res) => {
     `<h2>Your OTP is: <b>${otp}</b></h2>`
   );
 
-  return res.json(new ApiResponse(200, null, "OTP sent to email"));
+  return res.json(new ApiResponse(200,
+    {
+      email,
+      role,
+      
+    }
+    , "OTP sent to email"));
 });
 
 export const verifyOtp = asyncHandler(async (req, res) => {
@@ -70,30 +84,32 @@ export const verifyOtp = asyncHandler(async (req, res) => {
   await user.save();
 
   return res.json(
-  new ApiResponse(
-    200,
-    {
-      user: {
-        id: user._id,
-        email: user.email,
-        role: user.role,
+    new ApiResponse(
+      200,
+      {
+        user: {
+          id: user._id,
+          email: user.email,
+          role: user.role,
+        },
       },
-    },
-    "Email verified successfully"
-  )
-);
-
-
+      "Email verified successfully"
+    )
+  );
 });
 
 export const login = asyncHandler(async (req, res) => {
   console.log("step 1 done");
-  const { email, password } = req.body;
+  const { email, password, role } = req.body;
 
-  if (!email || !password) throw new ApiError(400, "Email & password required");
+  console.log(role);
+  
+
+  if (!email || !password || !role)
+    throw new ApiError(400, "Email & password & role required");
   console.log("step 1 done");
 
-  const user = await User.findOne({ email });
+  const user = await User.findOne({ email, role });
   if (!user) throw new ApiError(400, "Invalid credentials");
   console.log("step 1 done");
   if (!user.isVerified)
@@ -103,7 +119,7 @@ export const login = asyncHandler(async (req, res) => {
   const isMatch = await user.isPasswordCorrect(password);
   console.log("step 1 done");
   console.log(isMatch);
-  if(!isMatch) throw new ApiError(400, "Invalid credentials");
+  if (!isMatch) throw new ApiError(400, "Invalid credentials");
   console.log("step 1 done");
 
   const accessToken = user.generateAccessToken();
@@ -121,14 +137,15 @@ export const login = asyncHandler(async (req, res) => {
     new ApiResponse(
       200,
       {
-      user: {
-        id: user._id,
-        email: user.email,
-        role: user.role,
+        user: {
+          id: user._id,
+          email: user.email,
+          role: user.role,
+          wardId: user.wardId
+        },
+        accessToken,
+        refreshToken,
       },
-      accessToken,
-      refreshToken,
-    },
       "Logged in successfully"
     )
   );

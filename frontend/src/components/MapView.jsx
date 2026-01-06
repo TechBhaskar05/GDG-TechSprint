@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import {
   MapContainer,
   TileLayer,
@@ -8,7 +8,15 @@ import {
   LayersControl,
 } from "react-leaflet";
 import L from "leaflet";
-import { Filter, X, MapPin, List, Navigation } from "lucide-react";
+import {
+  Filter,
+  X,
+  MapPin,
+  List,
+  Navigation,
+  Loader2,
+  Target,
+} from "lucide-react";
 
 import { Header } from "./Header";
 import { Card } from "./Card";
@@ -32,26 +40,10 @@ function MapClickHandler({ onLocationSelect }) {
   return null;
 }
 
-// --- Sub-Component: Map Controller ---
-function MapController({ center }) {
-  const map = useMap();
-  if (center) {
-    map.flyTo(center, 15, { duration: 1.5 });
-  }
-  return null;
-}
-
-// Custom Marker styling
 const createCustomIcon = (color) =>
   new L.DivIcon({
     className: "custom-marker",
-    html: `<div style="
-    background-color: ${color}; 
-    width: 20px; 
-    height: 20px; 
-    border-radius: 50%; 
-    border: 3px solid white; 
-    box-shadow: 0 0 10px rgba(0,0,0,0.3);"></div>`,
+    html: `<div style="background-color: ${color}; width: 20px; height: 20px; border-radius: 50%; border: 3px solid white; box-shadow: 0 0 10px rgba(0,0,0,0.3);"></div>`,
     iconSize: [20, 20],
     iconAnchor: [10, 10],
   });
@@ -62,13 +54,64 @@ export function MapView() {
   const [showFilters, setShowFilters] = useState(false);
   const [filterCategory, setFilterCategory] = useState("");
   const [filterPriority, setFilterPriority] = useState("");
+  const [isGeocoding, setIsGeocoding] = useState(false);
+  const [mapInstance, setMapInstance] = useState(null);
 
   const navigate = useAppStore((state) => state.navigate);
+  const setCurrentAddress = useAppStore((state) => state.setCurrentAddress);
   const viewIssue = useAppStore((state) => state.viewIssue);
   const userRole = useAuthStore((state) => state.userRole);
-  const logout = useAuthStore((state) => state.logout);
 
-  const defaultCenter = [26.8467, 80.9462]; // Lucknow
+  const defaultCenter = [26.8467, 80.9462]; // Lucknow Fallback
+
+  const handleLocationSelect = useCallback(
+    async (lat, lng) => {
+      setNewIssueLocation({ lat, lng });
+      setIsGeocoding(true);
+
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`
+        );
+        if (!res.ok) throw new Error("API Limit or Network Error");
+        const data = await res.json();
+
+        const locationName =
+          data.address.city ||
+          data.address.suburb ||
+          data.address.town ||
+          data.address.state ||
+          "Detected Area";
+
+        setCurrentAddress(locationName);
+      } catch (error) {
+        console.error("Geocoding failed:", error.message);
+        setCurrentAddress("Current Location");
+      } finally {
+        setIsGeocoding(false);
+      }
+    },
+    [setCurrentAddress]
+  );
+
+  const handleLocateUser = () => {
+    if ("geolocation" in navigator) {
+      setIsGeocoding(true);
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          if (mapInstance) {
+            mapInstance.flyTo([latitude, longitude], 15);
+          }
+          handleLocationSelect(latitude, longitude);
+        },
+        (err) => {
+          console.error("GPS Access Denied:", err.message);
+          setIsGeocoding(false);
+        }
+      );
+    }
+  };
 
   const filteredIssues = useMemo(() => {
     return mockIssues.filter((issue) => {
@@ -78,26 +121,9 @@ export function MapView() {
     });
   }, [filterCategory, filterPriority]);
 
-  const getPriorityColor = (priority) => {
-    switch (priority) {
-      case "high":
-        return "#ef4444";
-      case "medium":
-        return "#f59e0b";
-      case "low":
-        return "#22c55e";
-      default:
-        return "#3b82f6";
-    }
-  };
-
-  const handleLocationSelect = (lat, lng) => {
-    setNewIssueLocation({ lat, lng });
-  };
-
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col overflow-hidden text-slate-900 dark:text-slate-100">
-      <Header userRole={userRole} onLogout={logout} onNavigate={navigate} />
+      <Header />
 
       <div className="flex-1 flex overflow-hidden">
         <div className="flex-1 relative z-0">
@@ -106,30 +132,16 @@ export function MapView() {
             zoom={13}
             zoomControl={false}
             style={{ height: "100%", width: "100%" }}
+            ref={setMapInstance}
           >
             <LayersControl position="topright">
               <LayersControl.BaseLayer checked name="Street View">
                 <TileLayer
                   url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-                  attribution='&copy; <a href="https://carto.com/">CARTO</a>'
-                />
-              </LayersControl.BaseLayer>
-
-              <LayersControl.BaseLayer name="Satellite View">
-                <TileLayer
-                  url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-                  attribution="Tiles &copy; Esri"
+                  attribution="&copy; CARTO"
                 />
               </LayersControl.BaseLayer>
             </LayersControl>
-
-            <MapController
-              center={
-                selectedIssue
-                  ? [selectedIssue.location.lat, selectedIssue.location.lng]
-                  : null
-              }
-            />
 
             <MapClickHandler onLocationSelect={handleLocationSelect} />
 
@@ -137,7 +149,7 @@ export function MapView() {
               <Marker
                 key={issue.id}
                 position={[issue.location.lat, issue.location.lng]}
-                icon={createCustomIcon(getPriorityColor(issue.priority))}
+                icon={createCustomIcon("#ef4444")}
                 eventHandlers={{ click: () => setSelectedIssue(issue) }}
               />
             ))}
@@ -150,13 +162,94 @@ export function MapView() {
             )}
           </MapContainer>
 
-          <div className="absolute top-4 left-4 z-[1000] flex flex-col gap-2">
+          {/* Map Controls - Z-index elevated to 1001 to stay above Leaflet layers */}
+          <div className="absolute top-4 left-4 z-[1001] flex flex-col gap-2">
             <Button
-              onClick={() => setShowFilters(!showFilters)}
+              onClick={(e) => {
+                e.stopPropagation(); // Stop event from reaching the map
+                setShowFilters(!showFilters);
+              }}
               className="bg-white/90 dark:bg-slate-800/90 backdrop-blur shadow-lg border-none hover:bg-white dark:hover:bg-slate-700 transition-all"
               variant="secondary"
             >
-              <Filter className="w-4 h-4 mr-2" /> Filters
+              <Filter className="w-4 h-4 mr-2" />
+              {showFilters ? "Hide Filters" : "Filters"}
+            </Button>
+
+            {/* Filter Menu */}
+            {showFilters && (
+              <Card className="w-72 p-5 shadow-2xl border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur animate-in fade-in zoom-in duration-150">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-bold text-sm dark:text-white text-slate-900">
+                    Refine View
+                  </h3>
+                  <button
+                    onClick={() => setShowFilters(false)}
+                    className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full"
+                  >
+                    <X size={16} className="text-slate-500" />
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                      Category
+                    </label>
+                    <select
+                      className="w-full p-2 text-sm rounded-md border dark:bg-slate-900 dark:border-slate-700 bg-white dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                      value={filterCategory}
+                      onChange={(e) => setFilterCategory(e.target.value)}
+                    >
+                      <option value="">All Categories</option>
+                      {categories.map((cat) => (
+                        <option key={cat} value={cat}>
+                          {cat}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                      Priority
+                    </label>
+                    <select
+                      className="w-full p-2 text-sm rounded-md border dark:bg-slate-900 dark:border-slate-700 bg-white dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                      value={filterPriority}
+                      onChange={(e) => setFilterPriority(e.target.value)}
+                    >
+                      <option value="">All Priorities</option>
+                      <option value="high">High</option>
+                      <option value="medium">Medium</option>
+                      <option value="low">Low</option>
+                    </select>
+                  </div>
+
+                  <Button
+                    variant="outline"
+                    className="w-full text-xs"
+                    onClick={() => {
+                      setFilterCategory("");
+                      setFilterPriority("");
+                    }}
+                  >
+                    Reset Filters
+                  </Button>
+                </div>
+              </Card>
+            )}
+
+            <Button
+              onClick={handleLocateUser}
+              className="bg-blue-600 text-white shadow-xl border-none hover:bg-blue-700 transition-all font-bold"
+            >
+              {isGeocoding ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Target className="w-4 h-4 mr-2" />
+              )}
+              {isGeocoding ? "Locating..." : "Use My Location"}
             </Button>
           </div>
 
@@ -167,7 +260,7 @@ export function MapView() {
                   <div className="p-1.5 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
                     <Navigation className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                   </div>
-                  <p className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-tight">
+                  <p className="text-xs font-bold uppercase tracking-tight">
                     Location Captured
                   </p>
                 </div>
@@ -184,173 +277,52 @@ export function MapView() {
               </p>
               <Button
                 size="sm"
-                className="w-full text-xs font-bold shadow-lg shadow-blue-500/20 bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-none"
+                className="w-full text-xs font-bold shadow-lg bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-none"
                 onClick={() => navigate("report-issue", newIssueLocation)}
+                disabled={isGeocoding}
               >
-                Report at this spot
+                {isGeocoding ? "Processing..." : "Report at this spot"}
               </Button>
-            </Card>
-          )}
-
-          {showFilters && (
-            <Card className="absolute top-16 left-4 w-72 p-5 z-[1001] shadow-2xl border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur animate-in fade-in zoom-in duration-150">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-sm dark:text-white text-slate-900">
-                  Refine View
-                </h3>
-                <button
-                  onClick={() => setShowFilters(false)}
-                  className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full"
-                >
-                  <X size={16} className="text-slate-500" />
-                </button>
-              </div>
-              <div className="space-y-4 text-slate-900 dark:text-slate-100">
-                <div className="space-y-1.5">
-                  <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
-                    Category
-                  </label>
-                  <select
-                    className="w-full p-2 text-sm rounded-md border dark:bg-slate-900 dark:border-slate-700 bg-white dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
-                    value={filterCategory}
-                    onChange={(e) => setFilterCategory(e.target.value)}
-                  >
-                    <option value="">All Categories</option>
-                    {categories.map((cat) => (
-                      <option key={cat} value={cat}>
-                        {cat}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
-                    Priority
-                  </label>
-                  <select
-                    className="w-full p-2 text-sm rounded-md border dark:bg-slate-900 dark:border-slate-700 bg-white dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
-                    value={filterPriority}
-                    onChange={(e) => setFilterPriority(e.target.value)}
-                  >
-                    <option value="">All Priorities</option>
-                    <option value="high">High</option>
-                    <option value="medium">Medium</option>
-                    <option value="low">Low</option>
-                  </select>
-                </div>
-                <Button
-                  variant="outline"
-                  className="w-full text-xs"
-                  onClick={() => {
-                    setFilterCategory("");
-                    setFilterPriority("");
-                  }}
-                >
-                  Reset Filters
-                </Button>
-              </div>
             </Card>
           )}
         </div>
 
         <div className="w-96 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 flex flex-col z-10 shadow-[-10px_0_30px_rgba(0,0,0,0.05)]">
-          {selectedIssue ? (
-            <div className="p-6 overflow-y-auto animate-in slide-in-from-right duration-300">
-              <div className="flex items-center justify-between mb-6">
-                <Badge
-                  variant="outline"
-                  className="text-[10px] uppercase tracking-widest px-2.5 py-0.5"
-                >
-                  Case Detail
-                </Badge>
-                <button
-                  onClick={() => setSelectedIssue(null)}
-                  className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
-                >
-                  <X size={18} className="text-slate-500" />
-                </button>
-              </div>
-
-              <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2 leading-tight">
-                {selectedIssue.title}
-              </h2>
-              <div className="flex items-center gap-1.5 text-slate-500 mb-6 font-medium">
-                <MapPin className="w-4 h-4 text-blue-500" />
-                <span className="text-xs truncate">
-                  {selectedIssue.location.address}
-                </span>
-              </div>
-
-              <div className="space-y-5">
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm">
-                    <p className="text-[10px] text-slate-400 font-bold uppercase mb-1.5 tracking-tight">
-                      Priority
-                    </p>
-                    <Badge priority={selectedIssue.priority} />
-                  </div>
-                  <div className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm">
-                    <p className="text-[10px] text-slate-400 font-bold uppercase mb-1.5 tracking-tight">
-                      Status
-                    </p>
-                    <Badge status={selectedIssue.status} />
-                  </div>
+          <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900">
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+              Active Reports
+            </h3>
+            <p className="text-[11px] text-slate-400 font-medium">
+              {filteredIssues.length} issues in view
+            </p>
+          </div>
+          <div className="flex-1 overflow-y-auto p-4 space-y-3">
+            {filteredIssues.map((issue) => (
+              <Card
+                key={issue.id}
+                onClick={() => {
+                  setSelectedIssue(issue);
+                  if (mapInstance)
+                    mapInstance.flyTo(
+                      [issue.location.lat, issue.location.lng],
+                      15
+                    );
+                }}
+                className="p-4 rounded-2xl border-white dark:border-slate-800 bg-white dark:bg-slate-900 cursor-pointer hover:border-blue-300 transition-all"
+              >
+                <div className="flex justify-between items-start mb-2">
+                  <span className="font-bold text-sm line-clamp-1 flex-1 dark:text-white tracking-tight">
+                    {issue.title}
+                  </span>
+                  <Badge priority={issue.priority} className="ml-2 scale-90" />
                 </div>
-
-                <div className="p-4 bg-blue-50/40 dark:bg-blue-900/10 rounded-2xl border border-blue-100/50 dark:border-blue-800/30">
-                  <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed italic">
-                    "{selectedIssue.description}"
-                  </p>
+                <div className="flex items-center text-[10px] text-slate-400">
+                  <MapPin className="w-3 h-3 mr-1 text-blue-500" />
+                  <span className="truncate">{issue.location.address}</span>
                 </div>
-
-                <Button
-                  className="w-full h-12 shadow-xl shadow-blue-500/20 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 transition-all active:scale-[0.98]"
-                  onClick={() => viewIssue(selectedIssue)}
-                >
-                  View Full Case File
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <div className="flex flex-col h-full bg-slate-50/20 dark:bg-slate-950/20">
-              <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-slate-900">
-                <div>
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-                    Active Reports
-                  </h3>
-                  <p className="text-[11px] text-slate-400 font-medium">
-                    {filteredIssues.length} issues in view
-                  </p>
-                </div>
-                <div className="p-2 bg-slate-50 dark:bg-slate-800 rounded-xl">
-                  <List className="w-5 h-5 text-slate-400" />
-                </div>
-              </div>
-              <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                {filteredIssues.map((issue) => (
-                  <Card
-                    key={issue.id}
-                    onClick={() => setSelectedIssue(issue)}
-                    className="p-4 rounded-2xl border-white dark:border-slate-800 bg-white dark:bg-slate-900 shadow-[0_4px_12px_rgba(0,0,0,0.03)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)] hover:border-blue-300 dark:hover:border-blue-500/50 cursor-pointer transition-all active:scale-[0.97]"
-                  >
-                    <div className="flex justify-between items-start mb-2">
-                      <span className="font-bold text-sm line-clamp-1 flex-1 dark:text-white tracking-tight">
-                        {issue.title}
-                      </span>
-                      <Badge
-                        priority={issue.priority}
-                        className="ml-2 scale-90 origin-right"
-                      />
-                    </div>
-                    <div className="flex items-center text-[10px] text-slate-400 font-medium">
-                      <MapPin className="w-3 h-3 mr-1 text-slate-300" />
-                      <span className="truncate">{issue.location.address}</span>
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            </div>
-          )}
+              </Card>
+            ))}
+          </div>
         </div>
       </div>
     </div>

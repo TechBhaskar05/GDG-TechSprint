@@ -21,4 +21,7 @@ const wardSchema = new mongoose.Schema({
     }]
 });
 
+wardSchema.index({ boundary: "2dsphere" });
+
+
 export default mongoose.model("Ward", wardSchema);
