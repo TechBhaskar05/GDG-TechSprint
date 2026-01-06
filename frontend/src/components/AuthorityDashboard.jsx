@@ -3,24 +3,61 @@ import { Header } from './Header';
 import { Card } from './Card';
 import { Badge } from './Badge';
 import { Button } from './Button';
-import { mockIssues } from '../data/mockData';
+import { useEffect, useState } from "react";
+import { fetchAuthorityDashboard } from "../services/ward.service";
+
 import { useAppStore } from '../store/useAppStore';
 import { useAuthStore } from '../store/useAuthStore';
+
+
+
+
+
+
 
 export function AuthorityDashboard() {
   const onNavigate = useAppStore((state) => state.navigate);
   const onViewIssue = useAppStore((state) => state.viewIssueDetail);
   const onLogout = useAuthStore((state) => state.logout);
 
-  const highPriorityIssues = mockIssues.filter(i => i.priority === 'high');
-  const pendingIssues = mockIssues.filter(i => i.status !== 'resolved');
-  const inProgressIssues = mockIssues.filter(i => i.status === 'in-progress');
-  const resolvedToday = mockIssues.filter(i => i.status === 'resolved').length;
+  const [stats, setStats] = useState({
+  total: 0,
+  highPriority: 0,
+  inProgress: 0,
+  resolvedToday: 0,
+});
 
-  const overdueIssues = mockIssues.filter(issue => {
-    const daysOpen = Math.floor((Date.now() - issue.reportedAt.getTime()) / (1000 * 60 * 60 * 24));
-    return daysOpen > 5 && issue.status !== 'resolved' && issue.priority === 'high';
-  });
+const [recentIssues, setRecentIssues] = useState([]);
+useEffect(() => {
+  fetchAuthorityDashboard()
+    .then((res) => {
+      setStats(res.data.stats);
+      setRecentIssues(res.data.recent);
+    })
+    .catch(console.error);
+}, []);
+
+const highPriorityIssues = recentIssues.filter(
+  (i) => i.priorityScore >= 80 && i.status !== "resolved"
+);
+
+const pendingIssues = recentIssues.filter(
+  (i) => i.status !== "resolved"
+);
+
+const inProgressIssues = recentIssues.filter(
+  (i) => i.status === "in_progress"
+);
+
+const resolvedToday = stats.resolvedToday;
+
+const overdueIssues = highPriorityIssues.filter((issue) => {
+  const daysOpen =
+    (Date.now() - new Date(issue.createdAt).getTime()) /
+    (1000 * 60 * 60 * 24);
+  return daysOpen > 5;
+});
+
 
   const formatDate = (date) => {
     return new Intl.DateTimeFormat('en-IN', { 
@@ -121,7 +158,8 @@ export function AuthorityDashboard() {
                   </div>
                 </div>
                 <div className="text-slate-900 dark:text-cyan-400 mb-1 group-hover:scale-110 transition-transform origin-left">
-                  {mockIssues.length}
+                  {stats.total}
+
                 </div>
                 <div className="text-slate-600 dark:text-slate-400">
                   {pendingIssues.length} pending
@@ -222,7 +260,7 @@ export function AuthorityDashboard() {
                   <h2 className="text-slate-900 dark:text-white">Recent Activity</h2>
                 </div>
                 <div className="space-y-4">
-                  {mockIssues.slice(0, 5).map(issue => (
+                  {recentIssues.slice(0, 5).map(issue => (
                     <div key={issue.id} className="flex items-start gap-3">
                       <div
                         className={`w-2 h-2 rounded-full mt-2 ${

@@ -8,10 +8,16 @@ import complaintRoutes from "./routes/complaint.routes.js";
 import wardRoutes from "./routes/ward.routes.js";
 import voteRoutes from "./routes/vote.routes.js";
 import adminRoutes from "./routes/admin.routes.js";
+import authorityDashboardRoutes from "./routes/authorityDashboard.routes.js";
+import analyticsRoutes from "./routes/analytics.routes.js";
+
 
 // Utility Import
 import { ApiError } from "./utils/ApiError.js";
 
+/* =====================
+   CREATE APP FIRST
+   ===================== */
 const app = express();
 
 // 1. GLOBAL MIDDLEWARES
@@ -21,6 +27,7 @@ app.use(
     credentials: true,
   })
 );
+app.use("/api", analyticsRoutes);
 
 app.use(express.json({ limit: "16kb" }));
 app.use(express.urlencoded({ extended: true, limit: "16kb" }));
@@ -34,7 +41,12 @@ app.use("/api/wards", wardRoutes);
 app.use("/api", voteRoutes);
 app.use("/api/admin", adminRoutes);
 
-// 3. HEALTH CHECK & FALLBACK
+// ✅ THIS MUST BE AFTER app is created
+app.use("/api", authorityDashboardRoutes);
+
+/* =====================
+   TEST ROUTE
+   ===================== */
 app.get("/", (req, res) => {
   res.send({
     status: "Online",
