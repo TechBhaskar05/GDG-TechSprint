@@ -29,9 +29,9 @@ app.use(cookieParser());
 
 // 2. ROUTES DECLARATION
 app.use("/api/auth", authRoutes);
-app.use("/api/complaint", complaintRoutes); // All complaint service calls must start with /api/complaint
-app.use("/api/ward", wardRoutes);
-app.use("/api/votes", voteRoutes); // Changed from "/api" to "/api/votes" for consistency
+app.use("/api/complaint", complaintRoutes);
+app.use("/api/wards", wardRoutes);
+app.use("/api", voteRoutes);
 app.use("/api/admin", adminRoutes);
 
 // 3. HEALTH CHECK & FALLBACK

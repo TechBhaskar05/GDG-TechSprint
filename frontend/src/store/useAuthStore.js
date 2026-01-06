@@ -6,20 +6,11 @@ import { create } from "zustand";
  * Includes rehydration logic to persist state on page refresh.
  */
 export const useAuthStore = create((set) => ({
-  // 1. Initial State: Pull from localStorage to handle page refreshes
-  userRole: localStorage.getItem("role") || null,
-  isAuthenticated: !!localStorage.getItem("accessToken"),
+  // Auth state
+  userRole: localStorage.getItem("role") || null, // 'citizen' | 'authority' | null
 
-  /**
-   * LOGIN
-   * Saves credentials to storage and updates memory state.
-   */
-  login: (role, accessToken, refreshToken) => {
-    // Save to storage to persist across refreshes
-    if (accessToken) localStorage.setItem("accessToken", accessToken);
-    if (refreshToken) localStorage.setItem("refreshToken", refreshToken);
-    localStorage.setItem("role", role);
-
+  isAuthenticated: false,
+  login: (role) => {
     set({
       userRole: role,
       isAuthenticated: true,

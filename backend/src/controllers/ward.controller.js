@@ -1,28 +1,28 @@
+// controllers/ward.controller.js
 import Ward from "../models/ward.model.js";
-import { asyncHandler } from "../utils/asyncHandler.js";
-import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
 
-export const createWard = asyncHandler(async (req, res) => {
-  const user = req.user;
+export const getWards = asyncHandler(async (req, res) => {
+  const { city } = req.query;
 
-  if (user.role !== "authority") {
-    throw new ApiError(403, "Only municipal admin can create wards");
+  if (!city) {
+    return res.json(new ApiResponse(200, [], "City is required"));
   }
 
-  const { name, city, boundary } = req.body;
+  const wards = await Ward.find({
+    city: { $regex: new RegExp(`^${city}$`, "i") }, // case-insensitive
+  }).select("_id name city");
 
-  if (!name || !city) {
-    throw new ApiError(400, "Ward name and city are required");
-  }
+  return res.json(
+    new ApiResponse(200, wards, "Wards fetched successfully")
+  );
+});
 
-  const ward = await Ward.create({
-    name,
-    city,
-    boundary: boundary || null
-  });
+export const getCities = asyncHandler(async (req, res) => {
+  const cities = await Ward.distinct("city");
 
-  res.status(201).json(
-    new ApiResponse(201, ward, "Ward created successfully")
+  return res.json(
+    new ApiResponse(200, cities, "Cities fetched successfully")
   );
 });

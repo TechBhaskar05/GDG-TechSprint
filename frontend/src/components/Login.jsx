@@ -1,87 +1,119 @@
-import { useState } from "react";
-import { Mail, Lock, ArrowLeft } from "lucide-react";
+import { useState, useEffect } from "react";
+import { ArrowLeft } from "lucide-react";
 import { Button } from "./Button";
 import { Card } from "./Card";
 import { useAppStore } from "../store/useAppStore";
 import { useAuthStore } from "../store/useAuthStore";
 import { registerUser, loginUser } from "../services/auth.service";
+import { fetchWards, fetchCities } from "../services/ward.service";
 
 export function Login({ isSignup }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState("citizen");
+
+  const [city, setCity] = useState("");
+  const [cities, setCities] = useState([]);
+  const [wardId, setWardId] = useState("");
+  const [wards, setWards] = useState([]);
+  const [wardLoading, setWardLoading] = useState(false);
+
   const [loading, setLoading] = useState(false);
 
   const navigate = useAppStore((state) => state.navigate);
   const setAuth = useAuthStore((state) => state.login);
+
+  /* =========================
+     FETCH CITIES (ON SIGNUP)
+  ========================= */
+  useEffect(() => {
+    if (isSignup && role === "authority") {
+      fetchCities()
+        .then((res) => {
+          setCities(res.data.data || []);
+        })
+        .catch(() => {
+          setCities([]);
+        });
+    }
+  }, [isSignup, role]);
+
+
+  /* FETCH WARDS BASED ON CITY */
+  useEffect(() => {
+    if (isSignup && role === "authority" && city) {
+      console.log("Fetching wards for city:", city); // 👈 ADD THIS
+
+      setWardLoading(true);
+
+      fetchWards(city)
+        .then((res) => {
+          console.log("Ward API response:", res.data); // 👈 ADD THIS
+          setWards(res.data.data || []);
+        })
+        .catch((err) => {
+          console.error("Ward fetch error:", err);
+          setWards([]);
+        })
+        .finally(() => {
+          setWardLoading(false);
+        });
+    }
+  }, [city, role, isSignup]);
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      /* =========================
-         SIGNUP FLOW (OTP)
-      ========================== */
+      /* SIGNUP */
       if (isSignup) {
-        const res = await registerUser({
+        if (role === "authority" && (!city || !wardId)) {
+          alert("Please select city and ward");
+          setLoading(false);
+          return;
+        }
+
+        const payload = {
           name: email.split("@")[0],
           email,
           password,
           role,
-        });
+        };
 
-        console.log(res);
-        
+        if (role === "authority") {
+          payload.city = city;
+          payload.wardId = wardId;
+        }
 
-        // Backend sends OTP to email
+        await registerUser(payload);
+
         sessionStorage.setItem("pendingEmail", email);
-        console.log("Stored pendingEmail:", sessionStorage.getItem("pendingEmail"));
         navigate("verify-otp");
-
         return;
       }
 
-      /* =========================
-         LOGIN FLOW
-      ========================== */
-      const res = await loginUser({ email, password,role });
-      console.log("reached here");
-      console.log(res);
+      /* LOGIN */
+      const res = await loginUser({ email, password, role });
       const { user, accessToken } = res.data;
-
-      console.log(user);
-
-      console.log("reached here");
 
       localStorage.setItem("accessToken", accessToken);
       localStorage.setItem("role", user.role);
 
-      console.log("reached here");
-
       setAuth(user.role);
 
-      console.log("reached");
-
-      setTimeout(() => {
-        navigate(
-          user.role === "authority"
-            ? "authority-dashboard"
-            : "citizen-dashboard"
-        );
-      }, 0);
-
-        console.log("reachedidhar");
-
+      navigate(
+        user.role === "authority"
+          ? "authority-dashboard"
+          : "citizen-dashboard"
+      );
     } catch (err) {
       alert(err.response?.data?.message || "Authentication failed");
     } finally {
       setLoading(false);
     }
-
   };
-
-
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-slate-900 p-6">
@@ -90,8 +122,7 @@ export function Login({ isSignup }) {
           onClick={() => navigate("landing")}
           className="flex items-center gap-2 text-slate-600 mb-6"
         >
-          <ArrowLeft size={18} />
-          Back
+          <ArrowLeft size={18} /> Back
         </button>
 
         <Card className="p-8">
@@ -99,7 +130,7 @@ export function Login({ isSignup }) {
             {isSignup ? "Create Account" : "Sign In"}
           </h2>
 
-          {/* Role Selection */}
+          {/* ROLE TABS */}
           <div className="flex gap-2 mb-4">
             {["citizen", "authority"].map((r) => (
               <button
@@ -108,7 +139,7 @@ export function Login({ isSignup }) {
                 onClick={() => setRole(r)}
                 className={`flex-1 py-2 rounded ${role === r
                     ? "bg-blue-600 text-white"
-                    : "bg-gray-200"
+                    : "bg-gray-200 dark:bg-slate-700"
                   }`}
               >
                 {r}
@@ -135,6 +166,46 @@ export function Login({ isSignup }) {
               className="w-full p-2 border rounded"
             />
 
+            {/* CITY */}
+            {isSignup && role === "authority" && (
+              <select
+                value={city}
+                onChange={(e) => {
+                  setCity(e.target.value);
+                  setWardId("");
+                }}
+                required
+                className="w-full p-2 rounded-md border bg-slate-100 dark:bg-slate-800"
+              >
+                <option value="">Select City</option>
+                {cities.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            )}
+
+            {/* WARD */}
+            {isSignup && role === "authority" && city && (
+              <select
+                value={wardId}
+                onChange={(e) => setWardId(e.target.value)}
+                required
+                className="w-full p-2 rounded-md border bg-slate-100 dark:bg-slate-800"
+              >
+                <option value="">
+                  {wardLoading ? "Loading wards..." : "Select Ward"}
+                </option>
+
+                {wards.map((ward) => (
+                  <option key={ward._id} value={ward._id}>
+                    {ward.name}
+                  </option>
+                ))}
+              </select>
+            )}
+
             <Button type="submit" className="w-full" disabled={loading}>
               {loading
                 ? "Please wait..."
@@ -143,17 +214,6 @@ export function Login({ isSignup }) {
                   : "Sign In"}
             </Button>
           </form>
-
-          <div className="mt-4 text-center">
-            <button
-              onClick={() => navigate(isSignup ? "login" : "signup")}
-              className="text-blue-600"
-            >
-              {isSignup
-                ? "Already have an account? Sign in"
-                : "New user? Sign up"}
-            </button>
-          </div>
         </Card>
       </div>
     </div>
