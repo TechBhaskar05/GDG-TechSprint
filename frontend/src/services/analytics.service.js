@@ -1,4 +1,6 @@
 import api from "./api";
 
-export const fetchAuthorityAnalytics = () =>
-  api.get("/authority/analytics");
+export const fetchAuthorityAnalytics = async () => {
+  const res = await api.get("/authority/analytics");
+  return res.data;
+};

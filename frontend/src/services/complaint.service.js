@@ -15,6 +15,8 @@ export const updateComplaintStatus = async (complaintId, data) => {
     data
   );
   return res.data;
+};
+
 /**
  * COMPLAINT SERVICE
  * Handles all communication with /api/complaint endpoints.
