@@ -13,7 +13,7 @@ import { Card } from "./Card";
 import { Badge } from "./Badge";
 import { Button } from "./Button";
 
-import { fetchWardComplaints } from "../services/complaint.service";
+import { complaintService } from "../services/complaint.service";
 import { useAppStore } from "../store/useAppStore";
 
 export function ComplaintManagement() {
@@ -31,7 +31,8 @@ export function ComplaintManagement() {
 
   // ✅ Fetch from backend
   useEffect(() => {
-    fetchWardComplaints()
+    complaintService.
+      getWardComplaints()
       .then((res) => {
         setComplaints(res.data);
       })

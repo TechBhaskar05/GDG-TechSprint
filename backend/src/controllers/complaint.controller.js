@@ -171,28 +171,42 @@ export const deleteComplaint = asyncHandler(async (req, res) => {
  */
 export const updateComplaintStatus = asyncHandler(async (req, res) => {
   const user = req.user;
-  const { status, authorityRemarks, afterFixImageUrl } = req.body;
+  const { status, authorityRemarks } = req.body;
+  const afterFixImageUrl = req.imageUrl; // ✅ CORRECT SOURCE
 
-  if (user.role !== "authority") throw new ApiError(403, "Unauthorized");
+  if (user.role !== "authority") {
+    throw new ApiError(403, "Unauthorized");
+  }
+
+  if (!status) {
+    throw new ApiError(400, "Status is required");
+  }
 
   const complaint = await Complaint.findById(req.params.complaintId);
   if (!complaint) throw new ApiError(404, "Not found");
 
-  if (!complaint.wardId.equals(user.wardId))
+  if (!complaint.wardId.equals(user.wardId)) {
     throw new ApiError(403, "Wrong Ward");
+  }
 
   complaint.status = status;
-  complaint.authorityRemarks = authorityRemarks || complaint.authorityRemarks;
+  complaint.authorityRemarks =
+    authorityRemarks || complaint.authorityRemarks;
 
   if (status === "resolved") {
-    if (!afterFixImageUrl) throw new ApiError(400, "After-fix image required");
+    if (!afterFixImageUrl) {
+      throw new ApiError(400, "After-fix image required");
+    }
+
     complaint.afterFixImageUrl = afterFixImageUrl;
     complaint.resolvedAt = new Date();
   }
 
   await complaint.save();
+
   res.json(new ApiResponse(200, complaint, "Status updated"));
 });
+
 
 /**
  * GETTERS
