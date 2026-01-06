@@ -10,8 +10,20 @@ const upload = multer({ storage });
 // Cloudinary uploader wrapper
 export const uploadImage = async (req, res, next) => {
   try {
-    if (!req.file) throw new ApiError(400, "Image is required");
+    /**
+     * LOGIC: Check if it's a NEW report vs an EDIT.
+     * req.method === "POST" means it's a new report (Image is Mandatory).
+     * req.method === "PATCH" means it's an update (Image is Optional).
+     */
+    if (!req.file) {
+      if (req.method === "POST") {
+        throw new ApiError(400, "Evidence image is required for new reports");
+      }
+      // If PATCH and no file, just move to the controller
+      return next();
+    }
 
+    // Convert buffer to Base64 for Cloudinary upload
     const base64File = `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`;
 
     const result = await cloudinary.uploader.upload(base64File, {

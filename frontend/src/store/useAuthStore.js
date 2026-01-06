@@ -1,67 +1,53 @@
-import { create } from 'zustand';
-import { loginUser,logoutUser } from '../services/auth.service.js';
+import { create } from "zustand";
 
+/**
+ * AUTH STORE
+ * Manages user session and role-based access.
+ * Includes rehydration logic to persist state on page refresh.
+ */
 export const useAuthStore = create((set) => ({
   // Auth state
   userRole: localStorage.getItem("role") || null, // 'citizen' | 'authority' | null
 
   isAuthenticated: false,
-
-  // login: async ({ email, password }) => {
-  //   // const res = await loginUser({ email, password });
-  //   // console.log("jhflwiuf",res);
-  //   // const { user, accessToken, refreshToken } = res.data;
-
-  //   // // Store token
-  //   // localStorage.setItem("accessToken", accessToken);
-  //   // localStorage.setItem("refreshToken", refreshToken);
-
-  //   // Decode role (simple way)
-  //   // const payload = JSON.parse(atob(accessToken.split(".")[1]));
-
-  //   set({
-  //     userRole: payload.role,
-  //     isAuthenticated: true
-  //   });
-
-  //   return{
-  //     role: payload.role,
-  //     message: res.data.message
-  //   }
-  // },
-
-   login: (role) => {
+  login: (role) => {
     set({
       userRole: role,
       isAuthenticated: true,
     });
 
-    return{
+    return {
       role: role,
-      message: "res.data.message"
-    }
+      message: "Login successful",
+    };
   },
 
-  logout: async () => {
-  // try {
-    // const refreshToken = localStorage.getItem("refreshToken");
-
-  //   if (refreshToken) {
-  //     // await logoutUser(refreshToken);
-  //     console.log("✅ Backend logout successful");
-  //   }
-  // } catch (error) {
-  //   console.error("⚠️ Logout API failed:", error?.response?.data?.message);
-  // } finally {
-    // Always clear local state
+  /**
+   * LOGOUT
+   * Clears all storage and resets state.
+   */
+  logout: () => {
     localStorage.removeItem("accessToken");
     localStorage.removeItem("refreshToken");
     localStorage.removeItem("role");
-    
+
     set({
       userRole: null,
-      isAuthenticated: false
+      isAuthenticated: false,
     });
-  // }
-}
+  },
+
+  /**
+   * REHYDRATE (Optional Helper)
+   * Manually force a sync with localStorage if needed.
+   */
+  checkAuth: () => {
+    const role = localStorage.getItem("role");
+    const token = localStorage.getItem("accessToken");
+
+    set({
+      userRole: role || null,
+      isAuthenticated: !!token,
+    });
+  },
 }));

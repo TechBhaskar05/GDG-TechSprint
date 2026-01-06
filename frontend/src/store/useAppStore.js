@@ -1,5 +1,9 @@
 import { create } from "zustand";
 
+/**
+ * APP STORE
+ * Manages global navigation, issue context, and spatial data.
+ */
 export const useAppStore = create((set) => ({
   // Navigation state: tracks which screen is currently rendered
   currentScreen: "landing",
@@ -7,23 +11,32 @@ export const useAppStore = create((set) => ({
   // Selected issue for authority detail view or authority dashboard
   selectedIssue: null,
 
-  // PERSISTENT LOCATION: Holds {lat, lng} captured for ward assignment
+  // Holds {lat, lng} captured for ward assignment
   selectedLocation: null,
+
+  // 1. ADD: Dynamic address for the Header (Replaces hardcoded Mumbai)
+  currentAddress: "Detecting Location...",
 
   /**
    * Navigate to a screen with an optional data payload.
-   * Updates the selectedLocation if data is provided (e.g., from MapView).
-   * Preserves existing location if data is null (e.g., moving between steps in ReportIssue).
    */
   navigate: (screen, data = null) =>
     set((state) => ({
       currentScreen: screen,
-      // Logic ensures coordinates aren't lost when moving between form steps
       selectedLocation: data !== null ? data : state.selectedLocation,
     })),
 
   /**
-   * Switch to the issue detail screen and set the context for the specific issue
+   * 2. ADD: Action to update the human-readable address
+   * Call this from the MapView or Geolocation handler.
+   */
+  setCurrentAddress: (address) =>
+    set({
+      currentAddress: address,
+    }),
+
+  /**
+   * Switch to the issue detail screen
    */
   viewIssue: (issue) =>
     set({
@@ -40,16 +53,16 @@ export const useAppStore = create((set) => ({
     }),
 
   /**
-   * Resets the location data.
-   * Call this after a successful report submission.
+   * Resets the location data after submission
    */
   clearSelectedLocation: () =>
     set({
       selectedLocation: null,
+      currentAddress: "Prayagraj, Uttar Pradesh", // Default reset location
     }),
 
   /**
-   * Manual update for location (e.g., using "Current Location" button in ReportIssue)
+   * Manual update for location
    */
   setSelectedLocation: (location) =>
     set({

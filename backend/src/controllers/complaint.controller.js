@@ -1,6 +1,5 @@
 import Complaint from "../models/complaint.model.js";
 import Ward from "../models/ward.model.js";
-
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { ApiError } from "../utils/ApiError.js";
@@ -10,13 +9,10 @@ import { analyzeComplaintWithAI } from "../services/ai.service.js";
 import { calculatePriority } from "../services/priority.service.js";
 
 /**
- * ===============================
  * CREATE COMPLAINT (Citizen)
- * ===============================
  */
 export const createComplaint = asyncHandler(async (req, res) => {
   const user = req.user;
-
   if (user.role !== "citizen") {
     throw new ApiError(403, "Only citizens can report complaints");
   }
@@ -37,13 +33,6 @@ export const createComplaint = asyncHandler(async (req, res) => {
   const lat = Number(location.lat);
   const lng = Number(location.lng);
 
-  if (isNaN(lat) || isNaN(lng)) {
-    throw new ApiError(400, "Latitude and longitude must be numbers");
-  }
-
-  /**
-   * Ward detection (existing logic – unchanged)
-   */
   const ward = await Ward.findOne({
     boundary: {
       $geoIntersects: {
@@ -55,161 +44,184 @@ export const createComplaint = asyncHandler(async (req, res) => {
     },
   });
 
-  if (!ward) {
-    throw new ApiError(404, "Ward not found for this location");
+  if (!ward) throw new ApiError(404, "Ward not found for this location");
+
+  let aiResult;
+  try {
+    aiResult = await analyzeComplaintWithAI({ imageUrl, description });
+  } catch (err) {
+    aiResult = {
+      category: "road",
+      severity: "medium",
+      keywords: ["manual_review_required"],
+    };
   }
 
-  /**
-   * STEP 1: Create complaint immediately (FAST UX)
-   */
   const complaint = await Complaint.create({
     reportedBy: user._id,
     description,
     imageUrl,
-    location: {
-      lat,
-      lng,
-    },
+    location: { lat, lng },
     wardId: ward._id,
+    aiCategory: aiResult.category,
+    aiSeverity: aiResult.severity,
+    aiKeywords: aiResult.keywords,
   });
 
-  /**
-   * STEP 2: Respond immediately
-   */
-  res.status(201).json(
-    new ApiResponse(201, complaint, "Complaint submitted successfully")
-  );
+  complaint.priorityScore = calculatePriority(complaint);
+  await complaint.save();
 
-  /**
-   * STEP 3: AI + Priority (ASYNC, NON-BLOCKING)
-   */
-  try {
-    const aiResult = await analyzeComplaintWithAI({
-      imageUrl,
-      description,
-    });
-
-    complaint.aiCategory = aiResult.category;
-    complaint.aiSeverity = aiResult.severity;
-    complaint.aiKeywords = aiResult.keywords;
-
-    complaint.priorityScore = calculatePriority(complaint);
-
-    await complaint.save();
-  } catch (err) {
-    console.error("AI processing failed:", err.message);
-    // Fail silently – complaint already exists
-  }
+  return res
+    .status(201)
+    .json(new ApiResponse(201, complaint, "Complaint submitted successfully"));
 });
 
 /**
- * ===============================
- * GET ALL COMPLAINTS (Map View)
- * ===============================
+ * EDIT COMPLAINT (Citizen)
+ * Now handles updates for Description, Image, and Location.
  */
-export const getAllComplaints = asyncHandler(async (req, res) => {
-  const complaints = await Complaint.find()
-    .select("location priorityScore aiCategory status")
-    .sort({ priorityScore: -1 });
+export const updateComplaint = asyncHandler(async (req, res) => {
+  const { complaintId } = req.params;
+  const { description, location } = req.body;
+  const userId = req.user._id;
+  const newImageUrl = req.imageUrl; // Populated by uploadImage middleware if a new file is sent
 
+  const complaint = await Complaint.findById(complaintId);
+  if (!complaint) throw new ApiError(404, "Complaint not found");
+
+  if (complaint.reportedBy.toString() !== userId.toString()) {
+    throw new ApiError(403, "You are not authorized to edit this report");
+  }
+
+  if (complaint.status !== "submitted") {
+    throw new ApiError(
+      400,
+      "Cannot edit a report that is already in progress or resolved"
+    );
+  }
+
+  // 1. Update Description
+  if (description) complaint.description = description;
+
+  // 2. Update Image if a new one was uploaded
+  if (newImageUrl) complaint.imageUrl = newImageUrl;
+
+  // 3. Update Location and Ward if new coordinates are sent
+  if (location && location.lat && location.lng) {
+    const lat = Number(location.lat);
+    const lng = Number(location.lng);
+
+    complaint.location = { lat, lng };
+
+    const newWard = await Ward.findOne({
+      boundary: {
+        $geoIntersects: {
+          $geometry: { type: "Point", coordinates: [lng, lat] },
+        },
+      },
+    });
+    if (newWard) complaint.wardId = newWard._id;
+  }
+
+  // 4. Re-run AI analysis on the updated content
+  try {
+    const aiResult = await analyzeComplaintWithAI({
+      imageUrl: complaint.imageUrl,
+      description: complaint.description,
+    });
+    complaint.aiCategory = aiResult.category;
+    complaint.aiSeverity = aiResult.severity;
+    complaint.aiKeywords = aiResult.keywords;
+    complaint.priorityScore = calculatePriority(complaint);
+  } catch (error) {
+    console.error("AI Re-analysis failed during edit:", error.message);
+  }
+
+  await complaint.save();
   res.json(
-    new ApiResponse(200, complaints, "Complaints fetched successfully")
+    new ApiResponse(200, complaint, "Complaint fully updated successfully")
   );
 });
 
-// Get ward complaints (authority)
-
-export const getWardComplaints = asyncHandler(async(req,res) => {
-    const user = req.user;
-
-    if(user.role !== "authority"){
-        throw new ApiError(403,"Access Denied");
-    }
-
-    const complaints = await Complaint.find({
-        wardId: user.wardId
-    }).sort({priorityScore: -1, createdAt: -1});
-
-    res.json(
-        new ApiResponse(200, complaints,"Ward complaints fetched successfully")
-    );
-});
-
-// get single complaint
-
-export const getComplaintById = asyncHandler(async(req,res)=>{
-    const {complaintId} = req.params;
-
-    const complaint = await Complaint.findById(complaintId)
-        .populate("reportedBy","name email")
-        .populate("wardId","name city");
-
-    if(!complaint){
-        throw new ApiError(404,"Complaint not found");
-    }
-
-    res.json(
-        new ApiResponse(200,complaint,"Complaint fetched successfully")
-    );
-});
-
-// Update complaint status 
-
-export const updateComplaintStatus = asyncHandler(async (req, res) => {
+/**
+ * DELETE COMPLAINT (Citizen/Authority)
+ */
+export const deleteComplaint = asyncHandler(async (req, res) => {
   const user = req.user;
   const { complaintId } = req.params;
-  const { status, authorityRemarks, afterFixImageUrl } = req.body;
-
-  if (user.role !== "authority") {
-    throw new ApiError(403, "Only authorities can update complaints");
-  }
 
   const complaint = await Complaint.findById(complaintId);
+  if (!complaint) throw new ApiError(404, "Complaint not found");
 
-  if (!complaint) {
-    throw new ApiError(404, "Complaint not found");
+  if (user.role === "citizen") {
+    if (complaint.reportedBy.toString() !== user._id.toString()) {
+      throw new ApiError(403, "Unauthorized");
+    }
+    if (complaint.status !== "submitted") {
+      throw new ApiError(400, "Cannot delete active reports");
+    }
   }
 
-  if (!complaint.wardId.equals(user.wardId)) {
-    throw new ApiError(403, "Not authorized to update this complaint");
-  }
+  await Complaint.findByIdAndDelete(complaintId);
+  res.json(new ApiResponse(200, null, "Deleted successfully"));
+});
+
+/**
+ * UPDATE STATUS (Authority Only)
+ */
+export const updateComplaintStatus = asyncHandler(async (req, res) => {
+  const user = req.user;
+  const { status, authorityRemarks, afterFixImageUrl } = req.body;
+
+  if (user.role !== "authority") throw new ApiError(403, "Unauthorized");
+
+  const complaint = await Complaint.findById(req.params.complaintId);
+  if (!complaint) throw new ApiError(404, "Not found");
+
+  if (!complaint.wardId.equals(user.wardId))
+    throw new ApiError(403, "Wrong Ward");
 
   complaint.status = status;
   complaint.authorityRemarks = authorityRemarks || complaint.authorityRemarks;
 
   if (status === "resolved") {
-    if (!afterFixImageUrl) {
-      throw new ApiError(400, "After-fix image is required to resolve complaint");
-    }
-
+    if (!afterFixImageUrl) throw new ApiError(400, "After-fix image required");
     complaint.afterFixImageUrl = afterFixImageUrl;
     complaint.resolvedAt = new Date();
   }
 
   await complaint.save();
-
-  res.json(
-    new ApiResponse(200, complaint, "Complaint updated successfully")
-  );
+  res.json(new ApiResponse(200, complaint, "Status updated"));
 });
 
-// Delete Complaint
+/**
+ * GETTERS
+ */
+export const getAllComplaints = asyncHandler(async (req, res) => {
+  const complaints = await Complaint.find()
+    .select("location priorityScore aiCategory status")
+    .sort({ priorityScore: -1 });
+  res.json(new ApiResponse(200, complaints, "Success"));
+});
 
-export const deleteComplaint = asyncHandler(async (req, res) => {
-  const user = req.user;
-  const { complaintId } = req.params;
+export const getWardComplaints = asyncHandler(async (req, res) => {
+  const complaints = await Complaint.find({ wardId: req.user.wardId }).sort({
+    priorityScore: -1,
+    createdAt: -1,
+  });
+  res.json(new ApiResponse(200, complaints, "Success"));
+});
 
-  if (user.role !== "authority") {
-    throw new ApiError(403, "Only municipal admins can delete complaints");
-  }
+export const getComplaintById = asyncHandler(async (req, res) => {
+  const complaint = await Complaint.findById(req.params.complaintId)
+    .populate("reportedBy", "name")
+    .populate("wardId", "name");
+  res.json(new ApiResponse(200, complaint, "Success"));
+});
 
-  const complaint = await Complaint.findByIdAndDelete(complaintId);
-
-  if (!complaint) {
-    throw new ApiError(404, "Complaint not found");
-  }
-
-  res.json(
-    new ApiResponse(200, null, "Complaint deleted successfully")
-  );
+export const getMyComplaints = asyncHandler(async (req, res) => {
+  const complaints = await Complaint.find({ reportedBy: req.user._id }).sort({
+    createdAt: -1,
+  });
+  res.json(new ApiResponse(200, complaints, "Success"));
 });

@@ -13,50 +13,92 @@ import { useEffect } from "react";
 import VerifyOtp from "./components/VerifyOtp";
 
 export default function App() {
-  // App state (Zustand)
   const currentScreen = useAppStore((state) => state.currentScreen);
   const navigate = useAppStore((state) => state.navigate);
   const selectedIssue = useAppStore((state) => state.selectedIssue);
-
-  // IMPORTANT: use the ORIGINAL name for compatibility
   const viewIssue = useAppStore((state) => state.viewIssue);
 
-  // Auth state (Zustand)
+  const setCurrentAddress = useAppStore((state) => state.setCurrentAddress);
+  const setSelectedLocation = useAppStore((state) => state.setSelectedLocation);
+
   const userRole = useAuthStore((state) => state.userRole);
-  const isAuthenticated = useAppStore((state) => state.isAuthenticated);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const login = useAuthStore((state) => state.login);
   const logout = useAuthStore((state) => state.logout);
 
+  /**
+   * 1. SESSION REHYDRATION & GPS DETECTION
+   * This effect runs once on mount to restore the session and detect location.
+   */
   useEffect(() => {
-    if (!isAuthenticated) {
-      navigate("landing");
-    }
-    const role = localStorage.getItem("role");
-    if (role === "citizen") {
-      navigate("citizen-dashboard");
-    } else if (role === "authority") {
-      navigate("authority-dashboard");
+    const savedRole = localStorage.getItem("role");
+    const savedToken = localStorage.getItem("accessToken");
+
+    // A. Rehydration Logic: Prioritize existing session to prevent logout on refresh
+    if (savedRole && savedToken) {
+      if (!isAuthenticated) {
+        login(savedRole); // Restore auth state in memory
+      }
+
+      // Only navigate if we are stuck on the landing/login screens
+      if (currentScreen === "landing" || currentScreen === "login") {
+        navigate(
+          savedRole === "authority"
+            ? "authority-dashboard"
+            : "citizen-dashboard"
+        );
+      }
     }
 
-  }, [isAuthenticated, navigate]);
+    // B. GPS Detection: Triggered for authenticated citizens
+    if (
+      (isAuthenticated || savedToken) &&
+      (userRole === "citizen" || savedRole === "citizen")
+    ) {
+      if ("geolocation" in navigator) {
+        navigator.geolocation.getCurrentPosition(
+          async (position) => {
+            const { latitude, longitude } = position.coords;
+            setSelectedLocation({ lat: latitude, lng: longitude });
 
-  // Login handler (LOGIC UNCHANGED)
+            try {
+              const res = await fetch(
+                `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}`
+              );
+              const data = await res.json();
+              const cityName =
+                data.address.city ||
+                data.address.town ||
+                data.address.suburb ||
+                "Lucknow";
+              setCurrentAddress(cityName); // Update dynamic header
+            } catch (err) {
+              console.error("Geocoding error:", err);
+              setCurrentAddress("Lucknow");
+            }
+          },
+          (err) => console.warn("GPS Blocked:", err.message)
+        );
+      }
+    }
+  }, [
+    isAuthenticated,
+    userRole,
+    login,
+    navigate,
+    setCurrentAddress,
+    setSelectedLocation,
+  ]);
+
   const handleLogin = (role) => {
     login(role);
-
-    if (role === "citizen") {
-      navigate("citizen-dashboard");
-    } else if (role === "authority") {
-      navigate("authority-dashboard");
-    }
+    navigate(role === "citizen" ? "citizen-dashboard" : "authority-dashboard");
   };
-
 
   const handleLogout = async () => {
     await logout();
     navigate("landing");
   };
-
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 transition-colors">
@@ -80,10 +122,7 @@ export default function App() {
       )}
 
       {currentScreen === "report-issue" && (
-        <ReportIssue
-          onNavigate={navigate}
-          onBack={() => navigate("citizen-dashboard")}
-        />
+        <ReportIssue onNavigate={navigate} />
       )}
 
       {currentScreen === "map-view" && (
