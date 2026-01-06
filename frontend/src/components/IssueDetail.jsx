@@ -57,7 +57,10 @@ export function IssueDetail({ issue, userRole }) {
       }
 
       // Using the service we created earlier
-      const res = await complaintService.updateStatus(issue._id, formData);
+      const res = await complaintService.updateComplaintStatus(
+      issue._id,
+      formData
+    );
 
       if (res.success) {
         setShowUpdateForm(false);

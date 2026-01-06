@@ -47,7 +47,13 @@ router.patch(
 router.get("/ward", auth, getWardComplaints);
 
 // 6. Update complaint status (Acknowledged, In Progress, Resolved)
-router.put("/:complaintId", auth, updateComplaintStatus);
+router.put(
+  "/:complaintId",
+  auth,
+  upload.single("image"),
+  uploadImage,
+  updateComplaintStatus
+);
 
 /**
  * SHARED MANAGEMENT
