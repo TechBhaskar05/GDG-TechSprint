@@ -167,11 +167,24 @@ export function ComplaintManagement() {
                     className="hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer">
 
                     <td className="px-6 py-4">
-                      <div className="font-medium">{issue.title}</div>
-                      <div className="text-sm text-slate-400">
-                        {issue.reportedBy?.name}
-                      </div>
-                    </td>
+  <div className="flex items-center gap-3">
+    {issue.imageUrl && (
+      <img
+        src={issue.imageUrl}
+        alt={issue.title}
+        className="w-12 h-12 object-cover rounded ring-1 ring-slate-200 dark:ring-slate-700"
+      />
+    )}
+
+    <div>
+      <div className="font-medium">{issue.title}</div>
+      <div className="text-sm text-slate-400">
+        {issue.reportedBy?.name}
+      </div>
+    </div>
+  </div>
+</td>
+
 
                     <td className="px-6 py-4">
                       <Badge>{issue.aiCategory}</Badge>

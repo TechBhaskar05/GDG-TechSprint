@@ -42,12 +42,38 @@ export const getAuthorityAnalytics = async (req, res) => {
             return sum + diff;
           }, 0) / resolved.length;
 
+          // 5. Weekly Trend (LAST 4 WEEKS)
+const trend = [];
+
+for (let i = 3; i >= 0; i--) {
+  const start = new Date();
+  start.setDate(start.getDate() - (i + 1) * 7);
+
+  const end = new Date();
+  end.setDate(end.getDate() - i * 7);
+
+  const weeklyComplaints = complaints.filter(
+    (c) => c.createdAt >= start && c.createdAt < end
+  );
+
+  trend.push({
+    label: `Week ${4 - i}`,
+    reported: weeklyComplaints.length,
+    resolved: weeklyComplaints.filter(
+      (c) => c.status === "resolved"
+    ).length,
+  });
+}
+
+
     res.json({
-      categoryMap,
-      priority,
-      status,
-      avgResolutionTime: avgResolutionTime.toFixed(1),
-    });
+  categoryMap,
+  priority,
+  status,
+  avgResolutionTime: avgResolutionTime.toFixed(1),
+  trend,
+});
+
   } catch (err) {
     res.status(500).json({ message: "Analytics failed" });
   }

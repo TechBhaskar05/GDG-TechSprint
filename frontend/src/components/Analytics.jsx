@@ -71,6 +71,8 @@ export function Analytics() {
       ? ((analytics.status.resolved / totalIssues) * 100).toFixed(1)
       : 0;
 
+      const trendData = analytics.trend || [];
+
   /* ================== UI (UNCHANGED) ================== */
 
   return (
@@ -187,6 +189,31 @@ export function Analytics() {
                 </ResponsiveContainer>
               </Card>
             </div>
+                      {/* Issues Reported vs Resolved */}
+<Card className="p-6 mb-6">
+  <h3>Issues Reported vs Resolved</h3>
+  <ResponsiveContainer width="100%" height={300}>
+    <LineChart data={trendData}>
+      <CartesianGrid strokeDasharray="3 3" />
+      <XAxis dataKey="label" />
+      <YAxis />
+      <Tooltip />
+      <Legend />
+      <Line
+        type="monotone"
+        dataKey="reported"
+        stroke="#3b82f6"
+        strokeWidth={2}
+      />
+      <Line
+        type="monotone"
+        dataKey="resolved"
+        stroke="#22c55e"
+        strokeWidth={2}
+      />
+    </LineChart>
+  </ResponsiveContainer>
+</Card>
 
             {/* Status Breakdown */}
             <Card className="p-6">
