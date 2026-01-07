@@ -1,57 +1,87 @@
+import OpenAI from "openai";
 import axios from "axios";
 
-const GEMINI_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 export const analyzeComplaintWithAI = async ({ imageUrl, description }) => {
   try {
-    // 1. Fetch image from Cloudinary and convert to Base64
-    const imageRes = await axios.get(imageUrl, { responseType: "arraybuffer" });
-    const base64Image = Buffer.from(imageRes.data, "binary").toString("base64");
+    // Convert image → base64
+    const imageRes = await axios.get(imageUrl, {
+      responseType: "arraybuffer",
+    });
 
-    const response = await axios.post(
-      `${GEMINI_URL}?key=${process.env.GEMINI_API_KEY}`,
-      {
-        contents: [
-          {
-            parts: [
-              {
-                text: `You are a Lucknow Municipal Corporation AI assistant. Analyze this civic issue description: "${description}". 
-                Compare the text with the provided image. 
-                Return ONLY a valid JSON object with these exact keys: 
-                "category" (must be one of: garbage, road, drainage, lighting), 
-                "severity" (must be one of: low, medium, high), 
-                "keywords" (array of relevant tags).`,
+    const base64Image = Buffer.from(imageRes.data).toString("base64");
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      temperature: 0.1,
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are an AI used by Indian municipal corporations to validate and classify civic complaints.",
+        },
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: `
+TASK 1: Validate image relevance.
+TASK 2: Classify the civic issue ONLY if relevant.
+
+Rules:
+- If the image does NOT show a real civic/public infrastructure issue, mark isRelevant=false.
+- Do NOT guess.
+- Reject selfies, animals, food, screenshots, private objects, memes, random photos.
+
+Return ONLY valid JSON in this EXACT format:
+
+{
+  "isRelevant": true | false,
+  "category": "garbage | road | drainage | lighting | null",
+  "severity": "low | medium | high | null",
+  "keywords": ["tag1", "tag2"]
+}
+
+Complaint description:
+"${description}"
+              `,
+            },
+            {
+              type: "image_url",
+              image_url: {
+                url: `data:image/jpeg;base64,${base64Image}`,
               },
-              { inline_data: { mime_type: "image/jpeg", data: base64Image } },
-            ],
-          },
-        ],
-      }
-    );
+            },
+          ],
+        },
+      ],
+    });
 
-    let rawText = response.data.candidates[0].content.parts[0].text;
+    const raw = response.choices[0].message.content;
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    const parsed = JSON.parse(jsonMatch[0]);
 
-    // Improved JSON extraction to handle potential AI chatter
-    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-    const aiResult = JSON.parse(jsonMatch ? jsonMatch[0] : rawText);
+    // 🚫 REJECT irrelevant images
+    if (!parsed.isRelevant) {
+      throw new Error("Irrelevant image uploaded");
+    }
 
-    // Force lowercase and validate against your Mongoose Enums
     return {
-      category: aiResult.category?.toLowerCase() || "road",
-      severity: aiResult.severity?.toLowerCase() || "medium",
-      keywords: aiResult.keywords || [],
+      category: parsed.category?.toLowerCase() || "road",
+      severity: parsed.severity?.toLowerCase() || "medium",
+      keywords: parsed.keywords || [],
     };
   } catch (error) {
-    // Log detailed error for debugging
-    console.error(
-      "Gemini AI Processing Failed:",
-      error.response?.data || error.message
-    );
+    console.error("OpenAI Vision Failed:", error.message);
+
+    // Explicit signal to controller
     return {
-      category: "road",
-      severity: "medium",
-      keywords: ["manual_review_required"],
+      error: true,
+      message: "Uploaded image is not a valid civic issue",
     };
   }
 };
