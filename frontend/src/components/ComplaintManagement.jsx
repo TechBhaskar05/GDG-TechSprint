@@ -60,15 +60,9 @@ export function ComplaintManagement() {
     if (filterCategory && issue.aiCategory !== filterCategory) return false;
     if (filterStatus && issue.status !== filterStatus) return false;
 
-    if (filterPriority) {
-      const p =
-        issue.priorityScore >= 80
-          ? "high"
-          : issue.priorityScore >= 50
-          ? "medium"
-          : "low";
-      if (p !== filterPriority) return false;
-    }
+    if (filterPriority && issue.aiSeverity !== filterPriority) {
+  return false;
+}
 
     return true;
   });
@@ -196,13 +190,7 @@ export function ComplaintManagement() {
 
                     <td className="px-6 py-4">
                       <Badge
-                        priority={
-                          issue.priorityScore >= 80
-                            ? "high"
-                            : issue.priorityScore >= 50
-                            ? "medium"
-                            : "low"
-                        }
+                        priority={issue.aiSeverity}
                       />
                     </td>
 
