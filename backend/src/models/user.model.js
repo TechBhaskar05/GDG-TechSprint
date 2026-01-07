@@ -70,6 +70,17 @@ const userSchema = new Schema(
       type: [refreshSessionSchema],
       default: [],
     },
+    googleId: {
+  type: String,
+  default: null,
+},
+
+authProvider: {
+  type: String,
+  enum: ["local", "google"],
+  default: "local",
+},
+
   },
   { timestamps: true }
 );

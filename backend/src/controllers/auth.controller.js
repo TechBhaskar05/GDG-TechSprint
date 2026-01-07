@@ -1,13 +1,91 @@
 import crypto from "crypto";
 import bcrypt from "bcrypt";
+import { OAuth2Client } from "google-auth-library";
+
 
 import { User } from "../models/user.model.js"; // whatever file name is
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
 
 import { generateOTP } from "../utils/generateOtp.js";
 import { sendEmail } from "../utils/sendEmail.js";
+
+export const googleAuth = asyncHandler(async (req, res) => {
+  const { credential, role, wardId } = req.body;
+
+  if (!credential) {
+    throw new ApiError(400, "Google credential missing");
+  }
+
+  const ticket = await googleClient.verifyIdToken({
+    idToken: credential,
+    audience: process.env.GOOGLE_CLIENT_ID,
+  });
+
+  const payload = ticket.getPayload();
+
+  const { email, name, picture, sub: googleId } = payload;
+
+  let user = await User.findOne({ email });
+
+  // If user exists but was created via email/password
+  if (user && user.authProvider === "local") {
+    throw new ApiError(
+      400,
+      "Email already registered using password login"
+    );
+  }
+
+  // Create user if not exists
+  if (!user) {
+    if (!["citizen", "authority"].includes(role)) {
+      throw new ApiError(400, "Invalid role");
+    }
+
+    if (role === "authority" && !wardId) {
+      throw new ApiError(400, "Ward ID required for authority");
+    }
+
+    user = await User.create({
+      name,
+      email,
+      avatar: picture,
+      googleId,
+      role,
+      wardId: role === "authority" ? wardId : null,
+      isVerified: true,
+      authProvider: "google",
+      password: crypto.randomBytes(20).toString("hex"), // dummy
+    });
+  }
+
+  const accessToken = user.generateAccessToken();
+  const refreshToken = crypto.randomBytes(40).toString("hex");
+
+  await user.addRefreshSession(
+    refreshToken,
+    new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+    req.headers["user-agent"],
+    req.ip
+  );
+
+  return res.json(
+    new ApiResponse(200, {
+      user: {
+        id: user._id,
+        email: user.email,
+        role: user.role,
+        wardId: user.wardId,
+      },
+      accessToken,
+      refreshToken,
+    }, "Google login successful")
+  );
+});
+
 
 export const register = asyncHandler(async (req, res) => {
   const { name, email, password, role, wardId } = req.body;
