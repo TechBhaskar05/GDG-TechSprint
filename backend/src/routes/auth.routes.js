@@ -9,6 +9,7 @@ import {
 } from "../controllers/auth.controller.js";
 
 import auth from "../middleware/auth.middleware.js";
+import { googleAuth } from "../controllers/auth.controller.js";
 
 const router = express.Router();
 
@@ -18,6 +19,8 @@ router.post("/verify-otp", verifyOtp); // step 2: confirm OTP
 
 // Auth session
 router.post("/login", login);
+router.post("/google", googleAuth);
+
 router.post("/refresh", refreshAccessToken);
 router.post("/logout", auth, logout);
 

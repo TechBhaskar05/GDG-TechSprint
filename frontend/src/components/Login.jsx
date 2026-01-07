@@ -6,6 +6,8 @@ import { useAppStore } from "../store/useAppStore";
 import { useAuthStore } from "../store/useAuthStore";
 import { registerUser, loginUser } from "../services/auth.service";
 import { fetchWards, fetchCities } from "../services/ward.service";
+import { GoogleLogin } from "@react-oauth/google";
+import { googleLogin } from "../services/auth.service";
 
 export function Login({ isSignup }) {
   const [email, setEmail] = useState("");
@@ -165,6 +167,37 @@ export function Login({ isSignup }) {
               required
               className="w-full p-2 border rounded"
             />
+
+            <GoogleLogin
+  onSuccess={async (credentialResponse) => {
+    try {
+      const res = await googleLogin({
+        credential: credentialResponse.credential,
+        role,
+        wardId: role === "authority" ? wardId : null,
+      });
+
+      const { user, accessToken } = res.data;
+
+      localStorage.setItem("accessToken", accessToken);
+      localStorage.setItem("role", user.role);
+
+      setAuth(user.role);
+
+      navigate(
+        user.role === "authority"
+          ? "authority-dashboard"
+          : "citizen-dashboard"
+      );
+    } catch (err) {
+      alert(err.response?.data?.message || "Google login failed");
+    }
+  }}
+  onError={() => {
+    alert("Google Sign In Failed");
+  }}
+/>
+
 
             {/* CITY */}
             {isSignup && role === "authority" && (

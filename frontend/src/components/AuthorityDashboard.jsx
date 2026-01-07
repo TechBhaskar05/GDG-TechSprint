@@ -230,7 +230,7 @@ const overdueIssues = highPriorityIssues.filter((issue) => {
                 <div className="space-y-3">
                   {highPriorityIssues.slice(0, 5).map(issue => (
                     <div 
-                      key={issue.id}
+                      key={issue._id}
                       className="p-4 border border-slate-200 dark:border-slate-700 rounded-xl hover:border-blue-300 dark:hover:border-cyan-500 hover:shadow-md dark:hover:shadow-cyan-500/10 cursor-pointer transition-all"
                       onClick={() => onViewIssue(issue)}
                     >
@@ -261,7 +261,7 @@ const overdueIssues = highPriorityIssues.filter((issue) => {
                 </div>
                 <div className="space-y-4">
                   {recentIssues.slice(0, 5).map(issue => (
-                    <div key={issue.id} className="flex items-start gap-3">
+                    <div key={issue._id} className="flex items-start gap-3">
                       <div
                         className={`w-2 h-2 rounded-full mt-2 ${
                           issue.status === 'resolved'
