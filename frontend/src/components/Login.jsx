@@ -8,6 +8,7 @@ import { registerUser, loginUser } from "../services/auth.service";
 import { fetchWards, fetchCities } from "../services/ward.service";
 import { GoogleLogin } from "@react-oauth/google";
 import { googleLogin } from "../services/auth.service";
+import toast from "react-hot-toast"
 
 export function Login({ isSignup }) {
   const [email, setEmail] = useState("");
@@ -72,7 +73,7 @@ export function Login({ isSignup }) {
       /* SIGNUP */
       if (isSignup) {
         if (role === "authority" && (!city || !wardId)) {
-          alert("Please select city and ward");
+          toast.error("Please select both city and ward");
           setLoading(false);
           return;
         }
@@ -90,7 +91,7 @@ export function Login({ isSignup }) {
         }
 
         await registerUser(payload);
-
+        toast.success("OTP sent to your email");
         sessionStorage.setItem("pendingEmail", email);
         navigate("verify-otp");
         return;
@@ -105,13 +106,16 @@ export function Login({ isSignup }) {
 
       setAuth(user.role);
 
+      toast.success("Login successful");
+
+
       navigate(
         user.role === "authority"
           ? "authority-dashboard"
           : "citizen-dashboard"
       );
     } catch (err) {
-      alert(err.response?.data?.message || "Authentication failed");
+      toast.error(err.response?.data?.message || "Authentication failed");
     } finally {
       setLoading(false);
     }

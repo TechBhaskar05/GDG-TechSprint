@@ -5,6 +5,7 @@ import { Button } from "./Button";
 import { useAppStore } from "../store/useAppStore";
 import { useAuthStore } from "../store/useAuthStore";
 import { verifyOtp } from "../services/auth.service.js";
+import toast from "react-hot-toast";
 
 export default function VerifyOtp() {
   const [otp, setOtp] = useState("");
@@ -36,6 +37,7 @@ export default function VerifyOtp() {
     //     ? "authority-dashboard"
     //     : "citizen-dashboard"
     // );
+    toast.success(data.message);
     navigate("login");
   } catch (err) {
     alert(err.response?.data?.message || "OTP verification failed");

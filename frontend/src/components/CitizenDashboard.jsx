@@ -18,6 +18,8 @@ import { useAppStore } from "../store/useAppStore";
 import { useAuthStore } from "../store/useAuthStore";
 import { complaintService } from "../services/complaint.service";
 
+import toast from "react-hot-toast";
+
 export function CitizenDashboard() {
   const [complaints, setComplaints] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -53,9 +55,10 @@ export function CitizenDashboard() {
     if (window.confirm("Delete this report?")) {
       try {
         await complaintService.deleteComplaint(id);
+        toast.success("Report deleted successfully");
         setComplaints((prev) => prev.filter((item) => item._id !== id));
       } catch (err) {
-        alert("Failed to delete.");
+        toast.error(err.response?.data?.message || "Unable to delete this report")
       }
     }
   };

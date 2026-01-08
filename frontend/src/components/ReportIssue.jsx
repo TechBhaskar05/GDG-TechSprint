@@ -13,6 +13,8 @@ import { Badge } from "./Badge";
 import { useAppStore } from "../store/useAppStore";
 import { complaintService } from "../services/complaint.service";
 
+import toast from "react-hot-toast";
+
 export function ReportIssue() {
   const navigate = useAppStore((state) => state.navigate);
   const selectedLocation = useAppStore((state) => state.selectedLocation);
@@ -50,6 +52,15 @@ export function ReportIssue() {
 
   const handleImageUpload = (e) => {
     const file = e.target.files && e.target.files[0];
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please upload a valid image file");
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image size must be under 5MB");
+      return;
+    }
     if (file) {
       setReportFile(file);                    // ✅ REAL FILE (FIX)
       setImage(URL.createObjectURL(file));    // preview (unchanged)
@@ -87,6 +98,8 @@ export function ReportIssue() {
       } else {
         const res = await complaintService.createComplaint(formData);
         if (res.success) {
+          toast.success("Report submitted successfully");
+
           setSubmitted(true);
           clearReportContext();
           setTimeout(() => navigate("citizen-dashboard"), 3000);
@@ -94,7 +107,8 @@ export function ReportIssue() {
       }
     } catch (error) {
       console.error("Submission error:", error.message);
-      alert(error.response?.data?.message || "Failed to process report.");
+      toast.error(error.response?.data?.message || "Failed to process report");
+
     } finally {
       setLoading(false);
     }

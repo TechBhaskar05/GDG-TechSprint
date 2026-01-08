@@ -12,6 +12,8 @@ import { useAuthStore } from "./store/useAuthStore";
 import { useEffect } from "react";
 import VerifyOtp from "./components/VerifyOtp";
 
+import { Toaster } from "react-hot-toast"
+
 export default function App() {
   const currentScreen = useAppStore((state) => state.currentScreen);
   const navigate = useAppStore((state) => state.navigate);
@@ -102,6 +104,13 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 transition-colors">
+      <Toaster
+      position="top-right"
+      reverseOrder={false}
+      toastOptions={{
+        duration: 4000,
+      }}
+    />
       {currentScreen === "landing" && <Landing onNavigate={navigate} />}
       {currentScreen === "verify-otp" && <VerifyOtp />}
 
