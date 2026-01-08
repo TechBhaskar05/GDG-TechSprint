@@ -11,7 +11,6 @@ import adminRoutes from "./routes/admin.routes.js";
 import authorityDashboardRoutes from "./routes/authorityDashboard.routes.js";
 import analyticsRoutes from "./routes/analytics.routes.js";
 
-
 // Utility Import
 import { ApiError } from "./utils/ApiError.js";
 
@@ -38,7 +37,7 @@ app.use(cookieParser());
 app.use("/api/auth", authRoutes);
 app.use("/api/complaint", complaintRoutes);
 app.use("/api/wards", wardRoutes);
-app.use("/api", voteRoutes);
+app.use("/api/vote", voteRoutes);
 app.use("/api/admin", adminRoutes);
 
 // ✅ THIS MUST BE AFTER app is created

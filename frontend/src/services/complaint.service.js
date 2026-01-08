@@ -1,25 +1,8 @@
 import api from "./api";
 
-// // Fetch ward complaints for authority
-// export const fetchWardComplaints = async (params = {}) => {
-//   const res = await api.get("/complaint/ward", {
-//     params,
-//   });
-//   return res.data;
-// };
-
-// // Update complaint status (authority)
-// export const updateComplaintStatus = async (complaintId, data) => {
-//   const res = await api.patch(
-//     `/complaint/${complaintId}/status`,
-//     data
-//   );
-//   return res.data;
-// };
-
 /**
  * COMPLAINT SERVICE
- * Handles all communication with /api/complaint endpoints.
+ * Handles all communication with /api/complaint and /api/vote endpoints.
  */
 export const complaintService = {
   /**
@@ -32,11 +15,11 @@ export const complaintService = {
   },
 
   /**
-   * Fetches all complaints for the Map View.
+   * Fetches complaints for discovery or map.
    * Method: GET /api/complaint/allComplaints
    */
-  getAllComplaints: async () => {
-    const response = await api.get("/complaint/allComplaints");
+  getAllComplaints: async (params = {}) => {
+    const response = await api.get("/complaint/allComplaints", { params });
     return response.data;
   },
 
@@ -46,6 +29,25 @@ export const complaintService = {
    */
   getMyComplaints: async () => {
     const response = await api.get("/complaint/my-reports");
+    return response.data;
+  },
+
+  /**
+   * UPVOTE LOGIC (FIXED)
+   * Sends a vote for a specific complaint.
+   * Method: POST /api/vote/complaints/:id/vote
+   */
+  upvoteComplaint: async (complaintId) => {
+    const response = await api.post(`/vote/complaints/${complaintId}/vote`);
+    return response.data;
+  },
+
+  /**
+   * REMOVE UPVOTE (FIXED)
+   * Method: DELETE /api/vote/complaints/:id/vote
+   */
+  removeUpvote: async (complaintId) => {
+    const response = await api.delete(`/vote/complaints/${complaintId}/vote`);
     return response.data;
   },
 
@@ -63,17 +65,13 @@ export const complaintService = {
    * Method: PUT /api/complaint/:id
    */
   updateComplaintStatus: async (complaintId, statusData) => {
-    const response = await api.put(
-      `/complaint/${complaintId}`,
-      statusData
-    );
+    const response = await api.put(`/complaint/${complaintId}`, statusData);
     return response.data;
   },
 
   /**
    * Updates complaint details (Used by Citizen to Edit)
    * Method: PATCH /api/complaint/:id
-   * Typically uses PATCH to update specific fields like description.
    */
   updateComplaint: async (complaintId, updateData) => {
     const response = await api.patch(`/complaint/${complaintId}`, updateData);
