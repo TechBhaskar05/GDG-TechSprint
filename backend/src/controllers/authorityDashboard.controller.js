@@ -3,7 +3,7 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 
 export const getAuthorityDashboard = asyncHandler(async (req, res) => {
-  const user = req.user; // comes from auth middleware
+  const user = req.user;
 
   // ⚠️ DO NOT change role logic
   if (user.role !== "authority") {
@@ -12,11 +12,12 @@ export const getAuthorityDashboard = asyncHandler(async (req, res) => {
 
   const wardId = user.wardId;
 
+  // 1. Fetch statistics for the dashboard
   const total = await Complaint.countDocuments({ wardId });
 
-  const highPriority = await Complaint.countDocuments({
+  const highPriorityCount = await Complaint.countDocuments({
     wardId,
-    priorityScore: { $gte: 80 },
+    priorityScore: { $gte: 65 },
     status: { $ne: "resolved" },
   });
 
@@ -33,19 +34,38 @@ export const getAuthorityDashboard = asyncHandler(async (req, res) => {
     },
   });
 
+  // 2. ✅ NEW: Fetch actual High Priority Issues for the UI card
+  // This populates the empty section in your screenshot
+  const highPriorityIssues = await Complaint.find({
+    wardId,
+    priorityScore: { $gte: 65 },
+    status: { $ne: "resolved" },
+  })
+    .sort({ priorityScore: -1 })
+    .limit(5)
+    .lean();
+
+  // 3. Fetch recent complaints for activity feed
+  // This provides unique timestamps for each "New submission" entry
   const recent = await Complaint.find({ wardId })
     .sort({ createdAt: -1 })
-    .limit(5);
+    .limit(15)
+    .lean();
 
   res.json(
-    new ApiResponse(200, {
-      stats: {
-        total,
-        highPriority,
-        inProgress,
-        resolvedToday,
+    new ApiResponse(
+      200,
+      {
+        stats: {
+          total,
+          highPriority: highPriorityCount,
+          inProgress,
+          resolvedToday,
+        },
+        highPriorityIssues, // ✅ Added this to fix the empty display
+        recent,
       },
-      recent,
-    })
+      "Authority dashboard synced successfully"
+    )
   );
 });

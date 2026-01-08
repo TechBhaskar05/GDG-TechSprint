@@ -12,7 +12,7 @@ import { useAppStore } from "./store/useAppStore";
 import { useAuthStore } from "./store/useAuthStore";
 import VerifyOtp from "./components/VerifyOtp";
 
-import { Toaster } from "react-hot-toast"
+import { Toaster } from "react-hot-toast";
 
 export default function App() {
   // --- App Store State ---
@@ -48,7 +48,7 @@ export default function App() {
           );
           const data = await res.json();
 
-          // FIX: Priority logic to find the city/district and skip road codes like "NH30"
+          // Priority logic to skip road codes like "NH30"
           const cityName =
             data.address.city ||
             data.address.town ||
@@ -56,21 +56,20 @@ export default function App() {
             data.address.municipality ||
             data.address.district ||
             data.address.state_district ||
-            "Prayagraj"; // Default to your current city
+            "Prayagraj";
 
-          // Sync location to both global stores
           setCurrentAddress(cityName);
           if (isAuthenticated) {
             setUserCity(cityName);
           }
         } catch (err) {
           console.error("Geocoding failed:", err);
-          setCurrentAddress("Prayagraj"); // Fallback to Prayagraj on error
+          setCurrentAddress("Prayagraj");
         }
       },
       (err) => {
         console.warn("GPS Access Denied:", err.message);
-        setCurrentAddress("Prayagraj"); // Fallback if user blocks GPS
+        setCurrentAddress("Prayagraj");
       },
       { enableHighAccuracy: true, timeout: 5000 }
     );
@@ -78,18 +77,15 @@ export default function App() {
 
   /**
    * SESSION & LOCATION REHYDRATION
-   * Ensures GPS runs once the user is authenticated.
    */
   useEffect(() => {
     const savedRole = localStorage.getItem("role");
     const savedToken = localStorage.getItem("accessToken");
 
-    // 1. Restore Auth Session if token exists
     if (savedRole && savedToken && !isAuthenticated) {
       login(savedRole);
     }
 
-    // 2. Trigger GPS Detection for logged-in users
     if (isAuthenticated || savedToken) {
       detectLocation();
     }
@@ -100,12 +96,10 @@ export default function App() {
    */
   const handleLogin = (role, userData) => {
     login(role, userData);
-    // Explicit navigation on fresh login
     navigate(role === "citizen" ? "citizen-dashboard" : "authority-dashboard");
   };
 
   const handleLogout = async () => {
-    // Thorough cleanup of all local persistence
     localStorage.removeItem("accessToken");
     localStorage.removeItem("role");
     localStorage.removeItem("civicfix-app-storage");
@@ -116,14 +110,10 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 transition-colors">
-      <Toaster
-      position="top-right"
-      reverseOrder={false}
-      toastOptions={{
-        duration: 4000,
-      }}
-    />
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors">
+      <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
+
+      {/* 1. Landing & Auth Screens (No Header) */}
       {currentScreen === "landing" && <Landing onNavigate={navigate} />}
       {currentScreen === "verify-otp" && <VerifyOtp />}
       {(currentScreen === "login" || currentScreen === "signup") && (
@@ -134,7 +124,7 @@ export default function App() {
         />
       )}
 
-      {/* Citizen Dashboard Flow */}
+      {/* 2. Citizen Flow - Headers are managed inside the components */}
       {currentScreen === "citizen-dashboard" && (
         <CitizenDashboard
           onNavigate={navigate}
@@ -146,7 +136,7 @@ export default function App() {
         <ReportIssue onNavigate={navigate} />
       )}
 
-      {/* Shared Features */}
+      {/* 3. Shared Features */}
       {currentScreen === "map-view" && (
         <MapView
           onNavigate={navigate}
@@ -163,7 +153,7 @@ export default function App() {
         />
       )}
 
-      {/* Authority Flow */}
+      {/* 4. Authority Flow - Ensure all components render the Header */}
       {currentScreen === "authority-dashboard" && (
         <AuthorityDashboard
           onNavigate={navigate}
@@ -172,9 +162,18 @@ export default function App() {
         />
       )}
       {currentScreen === "complaint-management" && (
-        <ComplaintManagement onNavigate={navigate} onViewIssue={viewIssue} />
+        <ComplaintManagement
+          onNavigate={navigate}
+          onViewIssue={viewIssue}
+          onLogout={handleLogout} // Passes logout to allow header to function
+        />
       )}
-      {currentScreen === "analytics" && <Analytics onNavigate={navigate} />}
+      {currentScreen === "analytics" && (
+        <Analytics
+          onNavigate={navigate}
+          onLogout={handleLogout} // FIXED: Analytics now has access to header actions
+        />
+      )}
     </div>
   );
 }

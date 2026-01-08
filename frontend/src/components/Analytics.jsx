@@ -1,11 +1,13 @@
+import { useEffect, useState } from "react";
 import {
   LayoutDashboard,
   FileText,
   Map,
   BarChart3,
-  TrendingUp,
-  TrendingDown,
-  AlertTriangle,
+  Clock,
+  CheckCircle,
+  Activity,
+  BarChart as BarChartIcon,
 } from "lucide-react";
 
 import {
@@ -24,13 +26,15 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-import { useEffect, useState } from "react";
 import { Card } from "./Card";
+import { Header } from "./Header"; // ✅ Ensure Header is imported
 import { useAppStore } from "../store/useAppStore";
+import { useAuthStore } from "../store/useAuthStore";
 import { fetchAuthorityAnalytics } from "../services/analytics.service";
 
 export function Analytics() {
   const onNavigate = useAppStore((state) => state.navigate);
+  const onLogout = useAuthStore((state) => state.logout); // ✅ Needed for Header
   const [analytics, setAnalytics] = useState(null);
 
   useEffect(() => {
@@ -40,13 +44,20 @@ export function Analytics() {
   }, []);
 
   if (!analytics) {
-    return <div className="p-8">Loading analytics...</div>;
+    return (
+      <div className="flex h-screen items-center justify-center bg-slate-50 dark:bg-slate-950 text-slate-400 transition-colors">
+        <div className="flex flex-col items-center gap-2">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-cyan-500 border-t-transparent"></div>
+          Analyzing data patterns...
+        </div>
+      </div>
+    );
   }
 
-  /* ================== DERIVED DATA (NO UI CHANGE) ================== */
+  /* ================== DATA PROCESSING ================== */
 
   const categoryData = Object.entries(analytics.categoryMap).map(
-    ([name, count]) => ({ name, count })
+    ([name, count]) => ({ name: name.toUpperCase(), count })
   );
 
   const priorityData = [
@@ -55,177 +66,272 @@ export function Analytics() {
     { name: "Low", value: analytics.priority.low, color: "#22c55e" },
   ];
 
-  const statusData = Object.entries(analytics.status).map(
-    ([name, value]) => ({ name, value })
-  );
-
   const totalIssues = Object.values(analytics.status).reduce(
     (a, b) => a + b,
     0
   );
-
-  const avgResolutionTime = analytics.avgResolutionTime;
-
   const resolutionRate =
     totalIssues > 0
       ? ((analytics.status.resolved / totalIssues) * 100).toFixed(1)
       : 0;
 
-      const trendData = analytics.trend || [];
-
-  /* ================== UI (UNCHANGED) ================== */
-
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
-      <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
-        <div className="px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-blue-600 dark:bg-gradient-to-br dark:from-cyan-500 dark:to-purple-600 rounded-lg flex items-center justify-center dark:shadow-lg dark:shadow-cyan-500/50">
-              <span className="text-white">CF</span>
-            </div>
-            <span className="text-slate-900 dark:text-white">CivicFix AI</span>
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors">
+      {/* FIXED: Header added for consistent visibility across tabs */}
+      <Header
+        userRole="authority"
+        onLogout={onLogout}
+        onNavigate={onNavigate}
+      />
 
       <div className="flex">
-        {/* Sidebar */}
+        {/* SIDEBAR - Fixed for light mode visibility */}
         <aside className="w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 min-h-[calc(100vh-73px)]">
           <nav className="p-4 space-y-1">
             <button
               onClick={() => onNavigate("authority-dashboard")}
-              className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-all"
+              className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all"
             >
-              <LayoutDashboard className="w-5 h-5" />
-              Dashboard
+              <LayoutDashboard size={20} /> Dashboard
             </button>
             <button
               onClick={() => onNavigate("complaint-management")}
-              className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-all"
+              className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all"
             >
-              <FileText className="w-5 h-5" />
-              Complaints
+              <FileText size={20} /> Complaints
             </button>
             <button
               onClick={() => onNavigate("map-view")}
-              className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-all"
+              className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all"
             >
-              <Map className="w-5 h-5" />
-              Map View
+              <Map size={20} /> Map View
             </button>
-            <button
-              className="w-full flex items-center gap-3 px-4 py-3 text-slate-900 dark:text-cyan-400 bg-slate-100 dark:bg-gradient-to-r dark:from-cyan-900/30 dark:to-purple-900/30 rounded-lg dark:border dark:border-cyan-500/30"
-            >
-              <BarChart3 className="w-5 h-5" />
-              Analytics
+            <button className="w-full flex items-center gap-3 px-4 py-3 text-cyan-600 dark:text-cyan-400 bg-cyan-50 dark:bg-cyan-500/10 rounded-xl border border-cyan-200 dark:border-cyan-500/20">
+              <BarChart3 size={20} /> Analytics
             </button>
           </nav>
         </aside>
 
-        {/* Main Content */}
-        <main className="flex-1 p-8">
-          <div className="max-w-7xl">
-            <div className="mb-8">
-              <h1 className="text-slate-900 dark:text-white mb-2">
+        {/* MAIN CONTENT */}
+        <main className="flex-1 p-8 overflow-y-auto">
+          <div className="max-w-7xl mx-auto">
+            <div className="mb-10">
+              {/* FIXED: Text color for light mode */}
+              <h1 className="text-4xl font-black text-slate-900 dark:text-white mb-2 tracking-tight">
                 Analytics & Reports
               </h1>
-              <p className="text-slate-600 dark:text-slate-400">
-                Comprehensive insights into civic issue patterns and resolution
+              <p className="text-slate-500 font-medium">
+                Monitoring resolution efficiency and issue density in Prayagraj
               </p>
             </div>
 
-            {/* Key Metrics */}
-            <div className="grid md:grid-cols-4 gap-6 mb-6">
-              <Card className="p-6">
-                <div>Avg. Resolution Time</div>
-                <div>{avgResolutionTime} days</div>
-              </Card>
-
-              <Card className="p-6">
-                <div>Resolution Rate</div>
-                <div>{resolutionRate}%</div>
-              </Card>
-
-              <Card className="p-6">
-                <div>Active Issues</div>
-                <div>
-                  {analytics.status.submitted +
+            {/* KEY METRICS GRID - Fixed for alignment */}
+            <div className="grid md:grid-cols-4 gap-6 mb-8">
+              {[
+                {
+                  label: "Avg. Resolution",
+                  value: `${analytics.avgResolutionTime} Days`,
+                  icon: Clock,
+                  color: "text-blue-500",
+                },
+                {
+                  label: "Resolution Rate",
+                  value: `${resolutionRate}%`,
+                  icon: CheckCircle,
+                  color: "text-green-500",
+                },
+                {
+                  label: "Active Issues",
+                  value:
+                    analytics.status.submitted +
                     analytics.status.acknowledged +
-                    analytics.status["in-progress"]}
-                </div>
-              </Card>
-
-              <Card className="p-6">
-                <div>Resolved</div>
-                <div>{analytics.status.resolved}</div>
-              </Card>
+                    analytics.status["in-progress"],
+                  icon: Activity,
+                  color: "text-orange-500",
+                },
+                {
+                  label: "Total Resolved",
+                  value: analytics.status.resolved,
+                  icon: BarChartIcon,
+                  color: "text-purple-500",
+                },
+              ].map((metric, i) => (
+                <Card
+                  key={i}
+                  className="p-6 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm"
+                >
+                  <div className="flex justify-between items-start mb-4">
+                    <span className="text-[10px] font-black uppercase text-slate-500 dark:text-slate-400 tracking-widest">
+                      {metric.label}
+                    </span>
+                    <metric.icon size={16} className={metric.color} />
+                  </div>
+                  <div className="text-3xl font-black text-slate-900 dark:text-white tracking-tighter">
+                    {metric.value}
+                  </div>
+                </Card>
+              ))}
             </div>
 
-            {/* Charts */}
-            <div className="grid lg:grid-cols-2 gap-6 mb-6">
-              <Card className="p-6">
-                <h3>Issues by Category</h3>
+            {/* CHARTS ROW 1 */}
+            <div className="grid lg:grid-cols-2 gap-6 mb-8">
+              <Card className="p-8 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
+                <h3 className="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-6">
+                  Issues by Category
+                </h3>
                 <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={categoryData}>
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip />
-                    <Bar dataKey="count" fill="#3b82f6" />
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke="#e2e8f0"
+                      className="dark:hidden"
+                    />
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke="#1e293b"
+                      className="hidden dark:block"
+                    />
+                    <XAxis
+                      dataKey="name"
+                      stroke="#64748b"
+                      fontSize={10}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <YAxis
+                      stroke="#64748b"
+                      fontSize={10}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "#0f172a",
+                        border: "none",
+                        borderRadius: "8px",
+                        color: "#fff",
+                      }}
+                    />
+                    <Bar
+                      dataKey="count"
+                      fill="#3b82f6"
+                      radius={[4, 4, 0, 0]}
+                      barSize={30}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </Card>
 
-              <Card className="p-6">
-                <h3>Priority Distribution</h3>
+              <Card className="p-8 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
+                <h3 className="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-6">
+                  Priority Distribution
+                </h3>
                 <ResponsiveContainer width="100%" height={300}>
                   <PieChart>
-                    <Pie data={priorityData} dataKey="value" outerRadius={100}>
+                    <Pie
+                      data={priorityData}
+                      dataKey="value"
+                      innerRadius={60}
+                      outerRadius={100}
+                      paddingAngle={5}
+                    >
                       {priorityData.map((e, i) => (
-                        <Cell key={i} fill={e.color} />
+                        <Cell key={i} fill={e.color} stroke="none" />
                       ))}
                     </Pie>
                     <Tooltip />
+                    <Legend verticalAlign="bottom" height={36} />
                   </PieChart>
                 </ResponsiveContainer>
               </Card>
             </div>
-                      {/* Issues Reported vs Resolved */}
-<Card className="p-6 mb-6">
-  <h3>Issues Reported vs Resolved</h3>
-  <ResponsiveContainer width="100%" height={300}>
-    <LineChart data={trendData}>
-      <CartesianGrid strokeDasharray="3 3" />
-      <XAxis dataKey="label" />
-      <YAxis />
-      <Tooltip />
-      <Legend />
-      <Line
-        type="monotone"
-        dataKey="reported"
-        stroke="#3b82f6"
-        strokeWidth={2}
-      />
-      <Line
-        type="monotone"
-        dataKey="resolved"
-        stroke="#22c55e"
-        strokeWidth={2}
-      />
-    </LineChart>
-  </ResponsiveContainer>
-</Card>
 
-            {/* Status Breakdown */}
-            <Card className="p-6">
-              <h3>Status Breakdown</h3>
-              <div className="grid md:grid-cols-4 gap-4">
-                {statusData.map((s) => (
-                  <div key={s.name}>
-                    <div>{s.name}</div>
-                    <div>{s.value}</div>
+            {/* STATUS BREAKDOWN GRID - FIXED FOR ALIGNMENT AND LIGHT MODE */}
+            <Card className="p-8 bg-white dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 shadow-xl rounded-[2rem] mb-8">
+              <h3 className="text-sm font-black text-slate-900 dark:text-slate-400 uppercase tracking-widest mb-10 flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-cyan-500" />
+                Status Breakdown
+              </h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+                {[
+                  {
+                    label: "Submitted",
+                    val: analytics.status.submitted,
+                    color: "bg-slate-400",
+                  },
+                  {
+                    label: "Acknowledged",
+                    val: analytics.status.acknowledged,
+                    color: "bg-blue-500",
+                  },
+                  {
+                    label: "In Progress",
+                    val: analytics.status["in-progress"],
+                    color: "bg-orange-500",
+                  },
+                  {
+                    label: "Resolved",
+                    val: analytics.status.resolved,
+                    color: "bg-green-500",
+                  },
+                ].map((item, idx) => (
+                  <div key={idx} className="space-y-3">
+                    <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-[10px] font-black uppercase tracking-widest">
+                      <div
+                        className={`w-1.5 h-1.5 rounded-full ${item.color}`}
+                      />
+                      {item.label}
+                    </div>
+                    <div className="text-5xl font-black text-slate-900 dark:text-white tracking-tighter">
+                      {item.val || 0}
+                    </div>
                   </div>
                 ))}
               </div>
+            </Card>
+
+            {/* RESOLUTION TREND */}
+            <Card className="p-8 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
+              <h3 className="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-6">
+                Resolution Trend (Weekly)
+              </h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={analytics.trend}>
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="#e2e8f0"
+                    className="dark:hidden"
+                  />
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="#1e293b"
+                    className="hidden dark:block"
+                  />
+                  <XAxis dataKey="label" stroke="#64748b" fontSize={10} />
+                  <YAxis stroke="#64748b" fontSize={10} />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "#0f172a",
+                      border: "none",
+                    }}
+                  />
+                  <Legend />
+                  <Line
+                    type="monotone"
+                    dataKey="reported"
+                    stroke="#3b82f6"
+                    strokeWidth={3}
+                    dot={{ r: 4 }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="resolved"
+                    stroke="#22c55e"
+                    strokeWidth={3}
+                    dot={{ r: 4 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
             </Card>
           </div>
         </main>
