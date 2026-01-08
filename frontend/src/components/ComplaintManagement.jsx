@@ -4,21 +4,22 @@ import {
   FileText,
   Map,
   BarChart3,
-  Search,
-  Filter,
-  Download,
+  ThumbsUp,
 } from "lucide-react";
 
 import { Card } from "./Card";
 import { Badge } from "./Badge";
 import { Button } from "./Button";
+import { Header } from "./Header"; // ✅ Ensure Header is imported
 
 import { complaintService } from "../services/complaint.service";
 import { useAppStore } from "../store/useAppStore";
+import { useAuthStore } from "../store/useAuthStore";
 
 export function ComplaintManagement() {
   const onNavigate = useAppStore((state) => state.navigate);
   const onViewIssue = useAppStore((state) => state.viewIssue);
+  const onLogout = useAuthStore((state) => state.logout); // ✅ Needed for Header
 
   const [complaints, setComplaints] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -31,8 +32,8 @@ export function ComplaintManagement() {
 
   // ✅ Fetch from backend
   useEffect(() => {
-    complaintService.
-      getWardComplaints()
+    complaintService
+      .getWardComplaints()
       .then((res) => {
         setComplaints(res.data);
       })
@@ -49,100 +50,97 @@ export function ComplaintManagement() {
       year: "numeric",
     }).format(new Date(date));
 
-  // ✅ Filtering
+  // ✅ Filtering logic with light-mode support
   let filteredIssues = complaints.filter((issue) => {
     if (
       searchQuery &&
-      !issue.title.toLowerCase().includes(searchQuery.toLowerCase())
+      !issue.aiCategory?.toLowerCase().includes(searchQuery.toLowerCase())
     )
       return false;
 
     if (filterCategory && issue.aiCategory !== filterCategory) return false;
     if (filterStatus && issue.status !== filterStatus) return false;
-
-    if (filterPriority && issue.aiSeverity !== filterPriority) {
-  return false;
-}
+    if (filterPriority && issue.aiSeverity !== filterPriority) return false;
 
     return true;
   });
 
-  // ✅ Sorting
+  // ✅ Sorting logic
   filteredIssues = [...filteredIssues].sort((a, b) => {
     if (sortBy === "date") {
       return new Date(b.createdAt) - new Date(a.createdAt);
     }
-
     if (sortBy === "upvotes") {
-      return (b.upvotes?.length || 0) - (a.upvotes?.length || 0);
+      return (b.upvoteCount || 0) - (a.upvoteCount || 0);
     }
-
     return b.priorityScore - a.priorityScore;
   });
 
-  // ✅ Loading safety
   if (loading) {
     return (
-      <div className="p-8 text-slate-400">
-        Loading complaints...
+      <div className="flex h-screen items-center justify-center bg-slate-50 dark:bg-slate-950 text-slate-400 transition-colors">
+        <div className="flex flex-col items-center gap-2">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent"></div>
+          Accessing ward reports...
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
-      {/* HEADER */}
-      <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
-        <div className="px-6 py-4 flex items-center gap-2">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-            <span className="text-white">CF</span>
-          </div>
-          <span className="text-slate-900 dark:text-white">
-            CivicFix AI
-          </span>
-        </div>
-      </header>
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors">
+      {/* FIXED: Header added for consistent visibility across tabs */}
+      <Header
+        userRole="authority"
+        onLogout={onLogout}
+        onNavigate={onNavigate}
+      />
 
       <div className="flex">
-        {/* SIDEBAR */}
-        <aside className="w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800">
+        {/* SIDEBAR - Fixed for light mode visibility */}
+        <aside className="w-64 min-h-[calc(100vh-73px)] bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800">
           <nav className="p-4 space-y-1">
-            <button onClick={() => onNavigate("authority-dashboard")}
-              className="w-full flex items-center gap-3 px-4 py-3">
-              <LayoutDashboard className="w-5 h-5" />
-              Dashboard
+            <button
+              onClick={() => onNavigate("authority-dashboard")}
+              className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all"
+            >
+              <LayoutDashboard size={20} /> Dashboard
             </button>
-
-            <button onClick={() => onNavigate("complaint-management")}
-              className="w-full flex items-center gap-3 px-4 py-3 bg-slate-100 dark:bg-slate-800 rounded-lg">
-              <FileText className="w-5 h-5" />
-              Complaints
+            <button className="w-full flex items-center gap-3 px-4 py-3 bg-blue-600/10 text-blue-600 dark:text-blue-500 rounded-lg font-medium border border-blue-200 dark:border-blue-500/20">
+              <FileText size={20} /> Complaints
             </button>
-
-            <button onClick={() => onNavigate("map-view")}
-              className="w-full flex items-center gap-3 px-4 py-3">
-              <Map className="w-5 h-5" />
-              Map View
+            <button
+              onClick={() => onNavigate("map-view")}
+              className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all"
+            >
+              <Map size={20} /> Map View
             </button>
-
-            <button onClick={() => onNavigate("analytics")}
-              className="w-full flex items-center gap-3 px-4 py-3">
-              <BarChart3 className="w-5 h-5" />
-              Analytics
+            <button
+              onClick={() => onNavigate("analytics")}
+              className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all"
+            >
+              <BarChart3 size={20} /> Analytics
             </button>
           </nav>
         </aside>
 
         {/* MAIN */}
-        <main className="flex-1 p-8">
-          <div className="mb-4 text-slate-600 dark:text-slate-400">
-            Showing {filteredIssues.length} of {complaints.length} complaints
+        <main className="flex-1 p-8 overflow-y-auto">
+          <div className="flex justify-between items-center mb-8">
+            <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">
+              Ward Management
+            </h1>
+            <div className="text-sm font-medium text-slate-500 dark:text-slate-400">
+              Showing {filteredIssues.length} of {complaints.length} active
+              issues
+            </div>
           </div>
 
-          <Card>
-            <table className="w-full">
+          {/* TABLE SECTION - FIXED FOR LIGHT MODE */}
+          <Card className="overflow-hidden border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xl rounded-2xl">
+            <table className="w-full border-collapse">
               <thead>
-                <tr>
+                <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 text-slate-500 dark:text-slate-400 text-[10px] font-black uppercase tracking-widest">
                   <th className="px-6 py-4 text-left">Issue</th>
                   <th className="px-6 py-4 text-left">Category</th>
                   <th className="px-6 py-4 text-left">Location</th>
@@ -150,71 +148,83 @@ export function ComplaintManagement() {
                   <th className="px-6 py-4 text-left">Status</th>
                   <th className="px-6 py-4 text-left">Upvotes</th>
                   <th className="px-6 py-4 text-left">Date</th>
-                  <th className="px-6 py-4 text-left">Actions</th>
+                  <th className="px-6 py-4 text-right">Actions</th>
                 </tr>
               </thead>
 
-              <tbody>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {filteredIssues.map((issue) => (
-                  <tr key={issue._id}
+                  <tr
+                    key={issue._id}
                     onClick={() => onViewIssue(issue)}
-                    className="hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer">
-
+                    className="hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group"
+                  >
                     <td className="px-6 py-4">
-  <div className="flex items-center gap-3">
-    {issue.imageUrl && (
-      <img
-        src={issue.imageUrl}
-        alt={issue.title}
-        className="w-12 h-12 object-cover rounded ring-1 ring-slate-200 dark:ring-slate-700"
-      />
-    )}
-
-    <div>
-      <div className="font-medium">{issue.title}</div>
-      <div className="text-sm text-slate-400">
-        {issue.reportedBy?.name}
-      </div>
-    </div>
-  </div>
-</td>
-
+                      <div className="flex items-center gap-3">
+                        <img
+                          src={issue.imageUrl || "/placeholder-issue.jpg"}
+                          alt={issue.aiCategory}
+                          className="w-12 h-12 object-cover rounded-xl ring-1 ring-slate-200 dark:ring-slate-700 shadow-sm"
+                        />
+                        <div>
+                          <div className="font-bold text-slate-900 dark:text-slate-100 uppercase text-[10px] tracking-widest">
+                            {issue.aiCategory}
+                          </div>
+                          <div className="text-xs text-slate-500 dark:text-slate-400 italic truncate max-w-[180px]">
+                            "{issue.description}"
+                          </div>
+                        </div>
+                      </div>
+                    </td>
 
                     <td className="px-6 py-4">
                       <Badge>{issue.aiCategory}</Badge>
                     </td>
 
-                    <td className="px-6 py-4 truncate max-w-xs">
-                      {issue.location?.address}
+                    <td className="px-6 py-4 text-xs font-medium text-slate-600 dark:text-slate-400">
+                      {issue.city || "Prayagraj"}
                     </td>
 
                     <td className="px-6 py-4">
-                      <Badge
-                        priority={issue.aiSeverity}
-                      />
+                      <Badge priority={issue.aiSeverity} />
                     </td>
 
                     <td className="px-6 py-4">
                       <Badge status={issue.status} />
                     </td>
 
-                    <td className="px-6 py-4 text-cyan-400">
-                      {issue.upvotes?.length || 0}
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-1.5 text-blue-600 dark:text-cyan-400 font-black">
+                        <ThumbsUp
+                          size={14}
+                          className="fill-blue-100 dark:fill-none"
+                        />
+                        {issue.upvoteCount || 0}
+                      </div>
                     </td>
 
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4 text-xs text-slate-500 dark:text-slate-400">
                       {formatDate(issue.createdAt)}
                     </td>
 
-                    <td className="px-6 py-4">
-                      <Button size="sm" variant="ghost">
-                        View
+                    <td className="px-6 py-4 text-right">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-600/10 dark:hover:text-blue-400 rounded-lg transition-all"
+                      >
+                        View Details
                       </Button>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+            {filteredIssues.length === 0 && (
+              <div className="py-20 text-center text-slate-400 font-medium italic">
+                No ward issues found matching your filters.
+              </div>
+            )}
           </Card>
         </main>
       </div>
