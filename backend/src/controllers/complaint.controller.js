@@ -1,5 +1,6 @@
 import Complaint from "../models/complaint.model.js";
 import Ward from "../models/ward.model.js";
+import Vote from "../models/vote.model.js"; // Import needed for Discovery synchronization
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { ApiError } from "../utils/ApiError.js";
@@ -22,13 +23,7 @@ export const createComplaint = asyncHandler(async (req, res) => {
   const { description, location } = req.body;
   const imageUrl = req.imageUrl;
 
-  if (
-    !description ||
-    !imageUrl ||
-    !location ||
-    !location.lat ||
-    !location.lng
-  ) {
+  if (!description || !imageUrl || !location?.lat || !location?.lng) {
     throw new ApiError(400, "Description, image and location are required");
   }
 
@@ -47,10 +42,7 @@ export const createComplaint = asyncHandler(async (req, res) => {
   const ward = await Ward.findOne({
     boundary: {
       $geoIntersects: {
-        $geometry: {
-          type: "Point",
-          coordinates: [lng, lat],
-        },
+        $geometry: { type: "Point", coordinates: [lng, lat] },
       },
     },
   });
@@ -111,14 +103,111 @@ export const createComplaint = asyncHandler(async (req, res) => {
 });
 
 /**
+ * GET ALL COMPLAINTS (Community Discovery)
+ * UPDATED: Injects 'hasUpvoted' to prevent duplicate POST 400 errors
+ * UPDATED: Selects more fields to fix missing Discovery data
+ */
+export const getAllComplaints = asyncHandler(async (req, res) => {
+  const userId = req.user?._id || null; 
+
+  const complaints = await Complaint.find().lean();
+
+  const complaintsWithVoteStatus = await Promise.all(
+    complaints.map(async (complaint) => {
+      let hasUpvoted = false;
+
+      if (userId) {
+        const userVote = await Vote.findOne({
+          complaintId: complaint._id,
+          userId,
+        });
+        hasUpvoted = !!userVote;
+      }
+
+      return {
+        ...complaint,
+        hasUpvoted,
+      };
+    })
+  );
+
+  return res.json(
+    new ApiResponse(200, complaintsWithVoteStatus, "Fetched all complaints")
+  );
+});
+
+
+/**
+ * GET COMPLAINT BY ID
+ * UPDATED: Injects vote status for individual detail view
+ */
+// Example for your GET /api/complaint/:id route
+export const getComplaintById = asyncHandler(async (req, res) => {
+  const { complaintId } = req.params;
+  const userId = req.user._id;
+
+  console.log(complaintId);
+  
+
+  console.log(userId);
+  
+
+  const complaint = await Complaint.findById(complaintId);
+  if (!complaint) throw new ApiError(404, "Complaint not found");
+
+  // Check the Votes collection for this specific user and complaint
+  const userVote = await Vote.findOne({
+    complaintId,
+    userId,
+  });
+
+  // Send the correct 'hasUpvoted' status so the frontend initializes correctly
+  return res.json(
+    new ApiResponse(200, {
+      ...complaint._doc,
+      hasUpvoted: !!userVote, // true if record exists, false otherwise
+    })
+  );
+});
+/**
+ * UPDATE STATUS (Authority Only)
+ */
+export const updateComplaintStatus = asyncHandler(async (req, res) => {
+  const user = req.user;
+  const { status, authorityRemarks } = req.body;
+  const afterFixImageUrl = req.imageUrl;
+
+  if (user.role !== "authority") throw new ApiError(403, "Unauthorized");
+  if (!status) throw new ApiError(400, "Status is required");
+
+  const complaint = await Complaint.findById(req.params.complaintId);
+  if (!complaint) throw new ApiError(404, "Not found");
+
+  if (!complaint.wardId.equals(user.wardId)) {
+    throw new ApiError(403, "This complaint belongs to a different ward");
+  }
+
+  complaint.status = status;
+  complaint.authorityRemarks = authorityRemarks || complaint.authorityRemarks;
+
+  if (status === "resolved") {
+    if (!afterFixImageUrl) throw new ApiError(400, "After-fix image required");
+    complaint.afterFixImageUrl = afterFixImageUrl;
+    complaint.resolvedAt = new Date();
+  }
+
+  await complaint.save();
+  res.json(new ApiResponse(200, complaint, "Status updated"));
+});
+
+/**
  * EDIT COMPLAINT (Citizen)
- * Now handles updates for Description, Image, and Location.
  */
 export const updateComplaint = asyncHandler(async (req, res) => {
   const { complaintId } = req.params;
   const { description, location } = req.body;
   const userId = req.user._id;
-  const newImageUrl = req.imageUrl; // Populated by uploadImage middleware if a new file is sent
+  const newImageUrl = req.imageUrl;
 
   const complaint = await Complaint.findById(complaintId);
   if (!complaint) throw new ApiError(404, "Complaint not found");
@@ -130,21 +219,16 @@ export const updateComplaint = asyncHandler(async (req, res) => {
   if (complaint.status !== "submitted") {
     throw new ApiError(
       400,
-      "Cannot edit a report that is already in progress or resolved"
+      "Cannot edit a report already in progress or resolved"
     );
   }
 
-  // 1. Update Description
   if (description) complaint.description = description;
-
-  // 2. Update Image if a new one was uploaded
   if (newImageUrl) complaint.imageUrl = newImageUrl;
 
-  // 3. Update Location and Ward if new coordinates are sent
-  if (location && location.lat && location.lng) {
+  if (location?.lat && location?.lng) {
     const lat = Number(location.lat);
     const lng = Number(location.lng);
-
     complaint.location = { lat, lng };
 
     const newWard = await Ward.findOne({
@@ -157,7 +241,6 @@ export const updateComplaint = asyncHandler(async (req, res) => {
     if (newWard) complaint.wardId = newWard._id;
   }
 
-  // 4. Re-run AI analysis on the updated content
   try {
     const aiResult = await analyzeComplaintWithAI({
       imageUrl: complaint.imageUrl,
@@ -178,7 +261,7 @@ export const updateComplaint = asyncHandler(async (req, res) => {
 });
 
 /**
- * DELETE COMPLAINT (Citizen/Authority)
+ * DELETE COMPLAINT
  */
 export const deleteComplaint = asyncHandler(async (req, res) => {
   const user = req.user;
@@ -201,70 +284,14 @@ export const deleteComplaint = asyncHandler(async (req, res) => {
 });
 
 /**
- * UPDATE STATUS (Authority Only)
+ * ADDITIONAL GETTERS
  */
-export const updateComplaintStatus = asyncHandler(async (req, res) => {
-  const user = req.user;
-  const { status, authorityRemarks } = req.body;
-  const afterFixImageUrl = req.imageUrl; // ✅ CORRECT SOURCE
-
-  if (user.role !== "authority") {
-    throw new ApiError(403, "Unauthorized");
-  }
-
-  if (!status) {
-    throw new ApiError(400, "Status is required");
-  }
-
-  const complaint = await Complaint.findById(req.params.complaintId);
-  if (!complaint) throw new ApiError(404, "Not found");
-
-  if (!complaint.wardId.equals(user.wardId)) {
-    throw new ApiError(403, "Wrong Ward");
-  }
-
-  complaint.status = status;
-  complaint.authorityRemarks =
-    authorityRemarks || complaint.authorityRemarks;
-
-  if (status === "resolved") {
-    if (!afterFixImageUrl) {
-      throw new ApiError(400, "After-fix image required");
-    }
-
-    complaint.afterFixImageUrl = afterFixImageUrl;
-    complaint.resolvedAt = new Date();
-  }
-
-  await complaint.save();
-
-  res.json(new ApiResponse(200, complaint, "Status updated"));
-});
-
-
-/**
- * GETTERS
- */
-export const getAllComplaints = asyncHandler(async (req, res) => {
-  const complaints = await Complaint.find()
-    .select("location priorityScore aiCategory status")
-    .sort({ priorityScore: -1 });
-  res.json(new ApiResponse(200, complaints, "Success"));
-});
-
 export const getWardComplaints = asyncHandler(async (req, res) => {
   const complaints = await Complaint.find({ wardId: req.user.wardId }).sort({
     priorityScore: -1,
     createdAt: -1,
   });
   res.json(new ApiResponse(200, complaints, "Success"));
-});
-
-export const getComplaintById = asyncHandler(async (req, res) => {
-  const complaint = await Complaint.findById(req.params.complaintId)
-    .populate("reportedBy", "name")
-    .populate("wardId", "name");
-  res.json(new ApiResponse(200, complaint, "Success"));
 });
 
 export const getMyComplaints = asyncHandler(async (req, res) => {

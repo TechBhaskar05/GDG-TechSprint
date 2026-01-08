@@ -4,7 +4,7 @@ export const validateDescription = (description) => {
   const text = description.toLowerCase().trim();
 
   // 1️⃣ Too short → reject
-  if (text.length < 15) return false;
+  if (text.length < 5) return false;
 
   // 2️⃣ Garbage / test strings
   const blockedPatterns = [

@@ -1,42 +1,45 @@
 import mongoose from "mongoose";
 
-const complaintSchema = new mongoose.Schema({
+const complaintSchema = new mongoose.Schema(
+  {
     reportedBy: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
-        required: true
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
     },
     description: {
-        type: String,
-        required: true
+      type: String,
+      required: true,
+      trim: true,
     },
     imageUrl: {
-        type: String,
-        required: true
+      type: String,
+      required: true,
+      // FIX: Provides a default placeholder if an image fails to upload
+      default:
+        "https://via.placeholder.com/800x450?text=Evidence+Image+Pending",
     },
     location: {
-        lat: Number,
-        lng: Number
+      lat: { type: Number, required: true },
+      lng: { type: Number, required: true },
     },
     wardId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Ward",
-        required: true
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Ward",
+      required: true,
     },
 
-    /* AI wale features */
-    // to categorise the complaint
+    /* AI Analysis Fields */
     aiCategory: {
-        type: String,
-        enum: ["garbage","road","drainage","lighting"],
-        default: null
+      type: String,
+      enum: ["garbage", "road", "drainage", "lighting", "other"],
+      default: "other",
     },
 
-    // to determine how much severe is the issue
     aiSeverity: {
-        type: String,
-        enum: ["low","medium","high"],
-        default: null
+      type: String,
+      enum: ["low", "medium", "high"],
+      default: "medium",
     },
 
     // useful for giving priority score
@@ -50,35 +53,56 @@ const complaintSchema = new mongoose.Schema({
 
     /* for prioity */
 
+    /* Priority & Community Engagement */
     priorityScore: {
-        type: Number,
-        default: 0
+      type: Number,
+      default: 0,
+      index: true, // Optimized for sorting the discovery feed
     },
 
     upvoteCount: {
-        type: Number,
-        default: 0
+      type: Number,
+      default: 0,
     },
 
-    // Status [updated from officers side]
-
+    /* Workflow Status */
     status: {
-        type: String,
-        enum: ["submitted","acknowledged","in_progress","resolved"],
-        default: "submitted"
+      type: String,
+      enum: ["submitted", "acknowledged", "in_progress", "resolved"],
+      default: "submitted",
     },
 
-    authorityRemarks: String,
+    authorityRemarks: {
+      type: String,
+      trim: true,
+    },
 
-    afterFixImageUrl: String,
+    afterFixImageUrl: {
+      type: String,
+    },
 
-    resolvedAt: Date,
+    resolvedAt: {
+      type: Date,
+    },
+  },
+  {
+    // FIX: Automatically handles createdAt and updatedAt to prevent RangeErrors
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
+  }
+);
 
-    createdAt: {
-        type: Date,
-        default: Date.now
-    }
-
+/**
+ * Virtual field to help the frontend track if the user has upvoted.
+ * This is populated dynamically by the controller.
+ */
+complaintSchema.virtual("hasUpvoted").get(function () {
+  return this._hasUpvoted || false;
 });
 
-export default mongoose.model("Complaint",complaintSchema);
+complaintSchema.virtual("hasUpvoted").set(function (val) {
+  this._hasUpvoted = val;
+});
+
+export default mongoose.model("Complaint", complaintSchema);

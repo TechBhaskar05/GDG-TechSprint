@@ -1,15 +1,14 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   ArrowLeft,
   ThumbsUp,
   MapPin,
   Calendar,
-  User,
-  AlertTriangle,
   ShieldCheck,
   Camera,
   Loader2,
   Info,
+  AlertTriangle,
 } from "lucide-react";
 import { Button } from "./Button";
 import { Card } from "./Card";
@@ -20,23 +19,103 @@ import { complaintService } from "../services/complaint.service";
 export function IssueDetail({ issue, userRole }) {
   const navigate = useAppStore((state) => state.navigate);
 
-  // States for handling updates
+  // Loading & Sync States
   const [isUpdating, setIsUpdating] = useState(false);
-  const [upvoted, setUpvoted] = useState(false);
-  const [showUpdateForm, setShowUpdateForm] = useState(false);
+  const [isVoting, setIsVoting] = useState(false);
 
-  // Form States for Authority
+  // UI States initialization
+  const [upvoted, setUpvoted] = useState(issue.hasUpvoted || false);
+  useEffect(() => {
+    console.log(issue.hasUpvoted);
+    console.log(upvoted);
+
+  }, []);
+  useEffect(() => {
+    const fetchIssue = async () => {
+      const res = await complaintService.getComplaintById(issue._id);
+      if (res.success) {
+        useAppStore.setState({ selectedIssue: res.data });
+      }
+    };
+
+    fetchIssue();
+  }, [issue._id]);
+
+  const [upvoteCount, setUpvoteCount] = useState(issue.upvoteCount || 0);
+
+  /**
+   * THE SOURCE OF TRUTH: voteStatusRef
+   * Updates synchronously to prevent multiple clicks from triggering the same logic path.
+   */
+  const voteStatusRef = useRef(issue.hasUpvoted || false);
+
+  // Sync state if the 'issue' prop changes (important for re-renders)
+  useEffect(() => {
+    voteStatusRef.current = issue.hasUpvoted || false;
+    setUpvoted(issue.hasUpvoted || false);
+    setUpvoteCount(issue.upvoteCount || 0);
+  }, [issue]);
+
+
+  const [showUpdateForm, setShowUpdateForm] = useState(false);
   const [status, setStatus] = useState(issue.status);
   const [remarks, setRemarks] = useState(issue.authorityRemarks || "");
   const [afterFixImage, setAfterFixImage] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
 
-  const formatDate = (date) => {
-    return new Intl.DateTimeFormat("en-IN", {
-      dateStyle: "long",
-      timeStyle: "short",
-    }).format(new Date(date));
+  const formatDate = (dateString) => {
+    if (!dateString) return "Date N/A";
+    const date = new Date(dateString);
+    return isNaN(date.getTime())
+      ? "Invalid Date"
+      : new Intl.DateTimeFormat("en-IN", {
+        dateStyle: "long",
+        timeStyle: "short",
+      }).format(date);
   };
+
+  /**
+   * HANDLER: Synchronous Toggle Logic with Self-Healing
+   * Fixes the "reset to 0 on refresh" and "hits 400 error" cycle.
+   */
+  const handleUpvoteToggle = async () => {
+    if (isVoting) return;
+
+    const wasUpvoted = voteStatusRef.current;
+    const willBeUpvoted = !wasUpvoted;
+    const prevCount = upvoteCount;
+
+    setIsVoting(true);
+
+    // Optimistic UI
+    voteStatusRef.current = willBeUpvoted;
+    setUpvoted(willBeUpvoted);
+    setUpvoteCount((c) => Math.max(0, willBeUpvoted ? c + 1 : c - 1));
+
+    try {
+      if (willBeUpvoted) {
+        await complaintService.upvoteComplaint(issue._id);
+      } else {
+        await complaintService.removeUpvote(issue._id);
+      }
+    } catch (error) {
+      const msg = error.response?.data?.message?.toLowerCase() || "";
+
+      if (msg.includes("already upvoted")) {
+        // self-heal
+        voteStatusRef.current = true;
+        setUpvoted(true);
+      } else {
+        // rollback
+        voteStatusRef.current = wasUpvoted;
+        setUpvoted(wasUpvoted);
+        setUpvoteCount(prevCount);
+      }
+    } finally {
+      setIsVoting(false);
+    }
+  };
+
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -52,23 +131,19 @@ export function IssueDetail({ issue, userRole }) {
       const formData = new FormData();
       formData.append("status", status);
       formData.append("authorityRemarks", remarks);
-      if (afterFixImage) {
-        formData.append("image", afterFixImage);
-      }
+      if (afterFixImage) formData.append("image", afterFixImage);
 
-      // Using the service we created earlier
       const res = await complaintService.updateComplaintStatus(
-      issue._id,
-      formData
-    );
+        issue._id,
+        formData
+      );
 
       if (res.success) {
         setShowUpdateForm(false);
-        // Refresh dashboard or local state
         navigate("authority-dashboard");
       }
     } catch (error) {
-      alert(error.response?.data?.message || "Failed to update issue");
+      alert(error.response?.data?.message || "Failed to update status");
     } finally {
       setIsUpdating(false);
     }
@@ -86,31 +161,33 @@ export function IssueDetail({ issue, userRole }) {
                   : "citizen-dashboard"
               )
             }
-            className="flex items-center gap-2 text-slate-600 dark:text-slate-400 font-bold text-xs uppercase tracking-widest hover:text-blue-600 transition-colors"
+            className="flex items-center gap-2 text-slate-600 dark:text-slate-400 font-bold text-xs uppercase hover:text-blue-600 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" /> Back to Dashboard
           </button>
           <div className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">
-            Case ID: {issue._id.substring(0, 8)}...
+            Case ID: {issue._id}
           </div>
         </div>
       </header>
 
       <main className="max-w-5xl mx-auto px-6 py-10 w-full">
         <div className="grid lg:grid-cols-3 gap-8">
-          {/* LEFT: Content & Evidence */}
           <div className="lg:col-span-2 space-y-6">
             <Card className="p-0 overflow-hidden border-none shadow-2xl rounded-[2rem] bg-white dark:bg-slate-900">
-              <div className="relative aspect-video group">
+              <div className="relative aspect-video group bg-slate-200 dark:bg-slate-800">
                 <img
-                  src={issue.imageUrl}
-                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                  alt="Issue Evidence"
+                  src={
+                    issue.imageUrl ||
+                    "https://via.placeholder.com/800x450?text=No+Evidence"
+                  }
+                  className="w-full h-full object-cover"
+                  alt="Evidence"
                 />
                 <div className="absolute top-6 left-6 flex gap-2">
                   <Badge status={status} className="shadow-lg border-none" />
                   <Badge
-                    priority={issue.aiSeverity}
+                    priority={issue.aiSeverity || "medium"}
                     className="shadow-lg border-none"
                   />
                 </div>
@@ -127,23 +204,31 @@ export function IssueDetail({ issue, userRole }) {
                   {userRole === "citizen" && (
                     <Button
                       variant={upvoted ? "primary" : "outline"}
-                      onClick={() => setUpvoted(!upvoted)}
-                      className={`h-10 rounded-xl transition-all ${
-                        upvoted ? "shadow-lg shadow-blue-500/20" : ""
-                      }`}
+                      onClick={handleUpvoteToggle}
+                      disabled={isVoting}
+                      className={`h-10 rounded-xl transition-all ${upvoted
+                        ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20"
+                        : ""
+                        }`}
                     >
-                      <ThumbsUp className="w-4 h-4 mr-2" />
-                      {issue.upvoteCount + (upvoted ? 1 : 0)} Upvotes
+                      {isVoting ? (
+                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      ) : (
+                        <ThumbsUp
+                          className={`w-4 h-4 mr-2 ${upvoted ? "fill-current" : ""}`}
+                        />
+                      )}
+
+                      {upvoteCount} Community Votes
                     </Button>
                   )}
                 </div>
-                <p className="text-xl text-slate-800 dark:text-slate-200 font-medium leading-relaxed">
-                  "{issue.description}"
+                <p className="text-xl text-slate-800 dark:text-slate-200 font-medium leading-relaxed italic">
+                  "{issue.description || "No description provided."}"
                 </p>
               </div>
             </Card>
 
-            {/* AI Analysis Card */}
             <Card className="p-6 dark:border-slate-800 bg-gradient-to-br from-white to-blue-50/30 dark:from-slate-900 dark:to-slate-800/30">
               <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest mb-4">
                 AI Vision Results
@@ -157,19 +242,18 @@ export function IssueDetail({ issue, userRole }) {
                     #{tag}
                   </span>
                 )) || (
-                  <span className="text-slate-400 italic text-xs">
-                    Awaiting processing...
-                  </span>
-                )}
+                    <span className="text-slate-400 italic text-xs">
+                      Analysis pending...
+                    </span>
+                  )}
               </div>
             </Card>
 
-            {/* Updates / Resolution Trail */}
             {(issue.authorityRemarks || issue.afterFixImageUrl) && (
               <Card className="p-8 border-none shadow-2xl bg-blue-600 text-white rounded-[2rem]">
                 <div className="flex items-center gap-3 mb-6">
                   <ShieldCheck size={28} />
-                  <h2 className="text-2xl font-bold tracking-tight italic">
+                  <h2 className="text-2xl font-bold italic">
                     Resolution Update
                   </h2>
                 </div>
@@ -177,7 +261,7 @@ export function IssueDetail({ issue, userRole }) {
                   <div className="space-y-4">
                     <p className="text-blue-50 leading-relaxed font-medium">
                       {issue.authorityRemarks ||
-                        "Work in progress by ward maintenance team."}
+                        "Maintenance team has addressed the reported issue."}
                     </p>
                     {issue.resolvedAt && (
                       <div className="text-[10px] font-bold uppercase tracking-widest text-blue-200">
@@ -197,7 +281,6 @@ export function IssueDetail({ issue, userRole }) {
             )}
           </div>
 
-          {/* RIGHT: Sidebar Details */}
           <div className="space-y-6">
             <Card className="p-6 dark:border-slate-800 rounded-3xl space-y-6">
               <div className="space-y-4">
@@ -207,11 +290,16 @@ export function IssueDetail({ issue, userRole }) {
                   </div>
                   <div>
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                      Spatial Pin
+                      Location
                     </p>
-                    <p className="text-xs font-mono font-bold dark:text-white mt-1">
-                      {issue.location.lat.toFixed(5)},{" "}
-                      {issue.location.lng.toFixed(5)}
+                    <p className="text-xs font-bold dark:text-white mt-1">
+                      {typeof issue.wardId === "object"
+                        ? issue.wardId?.name
+                        : "Prayagraj Ward"}
+                    </p>
+                    <p className="text-[10px] font-mono font-bold text-slate-400">
+                      {issue.location?.lat?.toFixed(5)},{" "}
+                      {issue.location?.lng?.toFixed(5)}
                     </p>
                   </div>
                 </div>
@@ -230,70 +318,33 @@ export function IssueDetail({ issue, userRole }) {
                 </div>
               </div>
 
-              {/* Authority Action Panel */}
               {userRole === "authority" && (
                 <div className="pt-6 border-t dark:border-slate-800">
                   {!showUpdateForm ? (
                     <Button
-                      className="w-full h-14 rounded-2xl shadow-xl shadow-blue-600/20"
+                      className="w-full h-14 rounded-2xl shadow-xl bg-blue-600"
                       onClick={() => setShowUpdateForm(true)}
                     >
-                      Update Case Status
+                      Update Status
                     </Button>
                   ) : (
-                    <div className="space-y-4 animate-in slide-in-from-top-4 duration-300">
-                      <div>
-                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 block">
-                          New Status
-                        </label>
-                        <select
-                          value={status}
-                          onChange={(e) => setStatus(e.target.value)}
-                          className="w-full bg-slate-50 dark:bg-slate-800 p-3 rounded-xl text-sm outline-none border border-slate-200 dark:border-slate-700 dark:text-white"
-                        >
-                          <option value="acknowledged">Acknowledge</option>
-                          <option value="in_progress">In Progress</option>
-                          <option value="resolved">Resolved</option>
-                        </select>
-                      </div>
-
-                      {status === "resolved" && (
-                        <div className="space-y-2">
-                          <label className="text-[10px] font-bold text-green-500 uppercase tracking-widest block">
-                            Fix Evidence
-                          </label>
-                          <div className="border-2 border-dashed dark:border-slate-700 rounded-xl p-4 text-center">
-                            {previewUrl ? (
-                              <img
-                                src={previewUrl}
-                                className="w-full h-32 object-cover rounded-lg mb-2"
-                                alt="Preview"
-                              />
-                            ) : (
-                              <Camera className="mx-auto text-slate-400 mb-2" />
-                            )}
-                            <input
-                              type="file"
-                              id="afterFix"
-                              className="hidden"
-                              onChange={handleImageChange}
-                            />
-                            <label
-                              htmlFor="afterFix"
-                              className="text-[10px] font-bold text-blue-500 cursor-pointer"
-                            >
-                              UPLOAD PHOTO
-                            </label>
-                          </div>
-                        </div>
-                      )}
-
+                    <div className="space-y-4">
+                      <select
+                        value={status}
+                        onChange={(e) => setStatus(e.target.value)}
+                        className="w-full bg-slate-50 dark:bg-slate-800 p-3 rounded-xl text-sm border dark:border-slate-700 dark:text-white outline-none"
+                      >
+                        <option value="submitted">Submitted</option>
+                        <option value="acknowledged">Acknowledge</option>
+                        <option value="in_progress">In Progress</option>
+                        <option value="resolved">Resolved</option>
+                      </select>
                       <textarea
                         value={remarks}
                         onChange={(e) => setRemarks(e.target.value)}
-                        placeholder="Authority remarks..."
-                        rows={4}
-                        className="w-full bg-slate-50 dark:bg-slate-800 p-3 rounded-xl text-xs outline-none border border-slate-200 dark:border-slate-700 dark:text-white resize-none"
+                        placeholder="Resolution details..."
+                        className="w-full bg-slate-50 dark:bg-slate-800 p-3 rounded-xl text-xs border dark:border-slate-700 dark:text-white resize-none"
+                        rows={3}
                       />
                       <div className="flex gap-2">
                         <Button
@@ -304,14 +355,14 @@ export function IssueDetail({ issue, userRole }) {
                           Cancel
                         </Button>
                         <Button
-                          className="flex-1 bg-green-600 hover:bg-green-700"
+                          className="flex-1 bg-green-600"
                           onClick={handleUpdateStatus}
                           disabled={isUpdating}
                         >
                           {isUpdating ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <Loader2 className="w-4 h-4 animate-spin mx-auto" />
                           ) : (
-                            "Save"
+                            "Save Changes"
                           )}
                         </Button>
                       </div>
@@ -323,14 +374,14 @@ export function IssueDetail({ issue, userRole }) {
 
             {issue.priorityScore > 0 && (
               <Card className="p-6 dark:border-slate-800 bg-orange-50/30 dark:bg-orange-950/20">
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-2 text-orange-600">
+                <div className="flex justify-between items-center text-orange-600">
+                  <div className="flex items-center gap-2">
                     <AlertTriangle size={16} />
                     <span className="text-[10px] font-black uppercase tracking-widest">
-                      Urgency Score
+                      Priority Score
                     </span>
                   </div>
-                  <span className="text-xl font-black text-orange-600">
+                  <span className="text-xl font-black">
                     {issue.priorityScore}%
                   </span>
                 </div>

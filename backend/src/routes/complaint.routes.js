@@ -27,7 +27,7 @@ router.post("/", auth, upload.single("image"), uploadImage, createComplaint);
 router.get("/my-reports", auth, getMyComplaints);
 
 // 3. Get all complaints for Map View
-router.get("/allComplaints", getAllComplaints);
+router.get("/allComplaints",auth, getAllComplaints);
 
 // 4. Edit an existing complaint (FULLY UNLOCKED)
 // Now includes upload middleware to handle NEW photos during edit
@@ -60,7 +60,7 @@ router.put(
  */
 
 // 7. Get detailed info for a single complaint
-router.get("/:complaintId", getComplaintById);
+router.get("/:complaintId",auth, getComplaintById);
 
 // 8. Delete a complaint (Ownership-aware)
 router.delete("/:complaintId", auth, deleteComplaint);
