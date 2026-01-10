@@ -37,6 +37,17 @@ export function IssueDetail({ issue, userRole }) {
   const [afterFixImage, setAfterFixImage] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
 
+  useEffect(() => {
+  const fetchIssue = async () => {
+    const res = await complaintService.getComplaintById(issue._id);
+    if (res.success) {
+      useAppStore.setState({ selectedIssue: res.data });
+    }
+  };
+
+  fetchIssue();
+}, [issue._id]);
+
   // Sync state if the 'issue' prop changes
   useEffect(() => {
     voteStatusRef.current = issue.hasUpvoted || false;
