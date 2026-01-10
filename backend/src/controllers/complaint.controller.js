@@ -110,7 +110,7 @@ export const createComplaint = asyncHandler(async (req, res) => {
 export const getAllComplaints = asyncHandler(async (req, res) => {
   const userId = req.user?._id || null; 
 
-  const complaints = await Complaint.find().lean();
+  const complaints = await Complaint.find().sort({ createdAt: -1 }).lean();
 
   const complaintsWithVoteStatus = await Promise.all(
     complaints.map(async (complaint) => {

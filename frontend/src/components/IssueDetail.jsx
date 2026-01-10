@@ -205,6 +205,27 @@ export function IssueDetail({ issue, userRole }) {
               </div>
             </Card>
 
+            {/* AI Analysis Card */}
+            <Card className="p-6 dark:border-slate-800 bg-gradient-to-br from-white to-blue-50/30 dark:from-slate-900 dark:to-slate-800/30">
+              <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest mb-4">
+                AI Vision Results
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                {issue.aiKeywords?.map((tag) => (
+                  <span
+                    key={tag}
+                    className="px-3 py-1 bg-white dark:bg-slate-800 text-[10px] font-bold rounded-full border border-slate-200 dark:border-slate-700"
+                  >
+                    #{tag}
+                  </span>
+                )) || (
+                  <span className="text-slate-400 italic text-xs">
+                    Awaiting processing...
+                  </span>
+                )}
+              </div>
+            </Card>
+
             {(issue.authorityRemarks || issue.afterFixImageUrl) && (
               <Card className="p-8 border-none shadow-2xl bg-blue-600 text-white rounded-[2rem]">
                 <div className="flex items-center gap-3 mb-6">
