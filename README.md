@@ -41,9 +41,6 @@ Urban governance systems often suffer from:
 - **Community Voting System**  
   One-vote-per-user mechanism to prioritize high-impact issues.
 
-- **Email Notifications**  
-  Automated email alerts for complaint creation and status updates.
-
 ---
 
 ### ⚙️ Advanced Features
@@ -55,9 +52,6 @@ Urban governance systems often suffer from:
 
 - **🖼️ Secure Image Uploads**  
   Media storage and optimization using Cloudinary.
-
-- **🧹 Cascading Deletions**  
-  Automatic cleanup of complaints and votes when a user is deleted.
 
 - **🧩 Clean Backend Architecture**  
   Modular structure with Controllers, Services, Middlewares, and Utilities.
@@ -90,7 +84,6 @@ Urban governance systems often suffer from:
 - Zustand (state management)  
 - Axios  
 - Leaflet & React Leaflet  
-- @vis.gl/react-google-maps  
 - Google OAuth (`@react-oauth/google`)  
 - Recharts (analytics & charts)  
 - Lucide React (icons)  
@@ -118,9 +111,6 @@ This project integrates multiple **Google-powered technologies** to enhance auth
 
 - **Google OAuth 2.0**  
   Secure and seamless authentication for users using Google accounts.
-
-- **Google Maps Platform**  
-  Interactive maps for visualizing complaint locations and geo-based filtering.
 
 - **Google Cloud Vision API**  
   AI-powered image analysis for validating and categorizing complaint images.
