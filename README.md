@@ -5,8 +5,11 @@
 > A transparent, scalable, and citizen-first civic engagement platform designed to streamline complaint reporting, enhance community participation, and improve governance through data-driven prioritization.
 
 ---
+
 ## 🌐 Live Deployment
 **Live Demo:** https://techsprint-deploy.vercel.app
+
+---
 
 ## 🌟 Overview
 
