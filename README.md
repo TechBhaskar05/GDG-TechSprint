@@ -7,7 +7,7 @@
 ---
 
 ## 🌐 Live Deployment
-**Live Demo:** https://techsprint-deploy.vercel.app
+**Live Demo:** https://civic-fix-ai-eight.vercel.app
 
 ---
 
