@@ -358,11 +358,6 @@ export function Landing() {
               const Icon = step.icon;
               return (
                 <div key={step.title} className="relative bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6">
-                  {i < STEPS.length - 1 && (
-                    <div className="hidden md:block absolute top-10 -right-3 text-slate-300 dark:text-slate-600">
-                      <ArrowRight size={16} />
-                    </div>
-                  )}
                   <div className="w-10 h-10 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center mb-4">
                     <Icon className="w-5 h-5 text-blue-600" />
                   </div>
